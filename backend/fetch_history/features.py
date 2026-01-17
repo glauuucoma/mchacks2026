@@ -1,4 +1,5 @@
 import argparse, pandas as pd, numpy as np, warnings
+import pandas_ta as ta
 warnings.filterwarnings('ignore')  # Suppress warnings
 
 def compute_rsi(prices, window=14):
@@ -19,28 +20,32 @@ def main(symbol):
     
     df.dropna(subset=['Close'], inplace=True)  # Drop bad rows
     
-    # Features (safe pct_change)
-    df['Returns'] = df['Close'].pct_change(fill_method=None)
-    df['SMA_20'] = df['Close'].rolling(20).mean()
-    df['SMA_50'] = df['Close'].rolling(50).mean()
+    # Features
+    df['Returns'] = df['Close'].pct_change()
     df['RSI'] = compute_rsi(df['Close'])
-    df['BB_upper'] = df['SMA_20'] + (df['Close'].rolling(20).std() * 2)
-    df['BB_lower'] = df['SMA_20'] - (df['Close'].rolling(20).std() * 2)
     
-    # Signals/Target
-    df['Signal'] = np.where(df['RSI'] < 30, 'BUY', np.where(df['RSI'] > 70, 'SELL', 'HOLD'))
-    df['Target'] = np.where(df['Close'].shift(-1) > df['Close'], 1, 0)
+    # MACD
+    ema12 = df['Close'].ewm(span=12).mean()
+    ema26 = df['Close'].ewm(span=26).mean()
+    df['MACD'] = ema12 - ema26
+    
+    # ATR
+    tr1 = df['High'] - df['Low']
+    tr2 = abs(df['High'] - df['Close'].shift())
+    tr3 = abs(df['Low'] - df['Close'].shift())
+    tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+    df['ATR'] = tr.rolling(14).mean()
+    
+    # Target (thresholded returns)
+    df['Target'] = np.where(df['Returns'].shift(-1) > 0.01, 2,    # BUY >1%
+                           np.where(df['Returns'].shift(-1) < -0.01, 0, 1))  # SELL <-1%
     
     df.dropna(inplace=True)
     df.to_csv(f'{symbol.lower()}_features.csv')
-    print(df[['Close', 'RSI', 'Signal']].tail())
-    print("\nSignal counts:", df['Signal'].value_counts())
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("symbol", nargs="?")
     args = parser.parse_args()
-    if not args.symbol:
-        print("Usage: python features.py GOOG")
-    else:
+    if args.symbol:
         main(args.symbol)

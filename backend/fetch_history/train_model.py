@@ -6,7 +6,7 @@ from sklearn.metrics import accuracy_score
 import pandas_ta as ta
 
 class StockLSTM(nn.Module):
-    def __init__(self, input_size=8, hidden_size=50, num_layers=2):  # 8 features
+    def __init__(self, input_size=5, hidden_size=50, num_layers=2):  # 10 features
         super().__init__()
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, dropout=0.2)
         self.fc = nn.Linear(hidden_size, 3)  # 3 classes: buy/sell/hold
@@ -18,7 +18,7 @@ class StockLSTM(nn.Module):
         return self.softmax(out)  # Probabilities
 
 def prepare_data(df, seq_length=60):
-    features = ['Open', 'High', 'Low', 'Close', 'Volume', 'Returns', 'SMA_20', 'RSI']
+    features = ['Close', 'Volume', 'RSI', 'MACD', 'ATR']
     scaler = MinMaxScaler()
     scaled = scaler.fit_transform(df[features].dropna())
     
