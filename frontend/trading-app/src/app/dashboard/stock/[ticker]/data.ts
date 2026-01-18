@@ -40,12 +40,16 @@ export interface AnalysisResult {
     };
   }
   
+// Updated CongressPerson interface to match AINvest API response
 export interface CongressPerson {
-    name?: string;
-    office?: string;
-    type?: string;
-    amount?: string;
-    transactionDate?: string;
-    photo_url?: string;
-    [key: string]: string | undefined;
-  }
+  id: string;
+  size: string;
+  reporting_gap: string;
+  name: string;
+  trade_type: string;
+  filing_date: string;
+  state: string;
+  trade_date: string;
+  party: string;
+  photo_url?: string | null;
+}

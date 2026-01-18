@@ -109,8 +109,8 @@ export default function StockDetailPage() {
       setIsCongressLoading(true);
       try {
         const data = await congressService.getActivity(ticker);
-        console.log("Congress API response:", data); // Debug: see what the API returns
-        setCongressData(data?.congress_data || data?.data || data || []);
+        console.log("Congress API response:", data);
+        setCongressData(data || []);
       } catch (error) {
         console.error("Failed to fetch congress data:", error);
         setCongressData([]);
@@ -1226,10 +1226,18 @@ function InsiderKnowledgeTab({
   isLoading,
   ticker,
 }: {
-  congressData: any[]; // Changed to any[] to match the new JSON structure
+  congressData: CongressPerson[];
   isLoading: boolean;
   ticker: string;
 }) {
+  // Get party color
+  const getPartyColor = (party: string) => {
+    const p = party?.toLowerCase() || "";
+    if (p.includes("republican")) return { bg: "bg-red-500/10", text: "text-red-600", border: "border-red-500/30" };
+    if (p.includes("democrat")) return { bg: "bg-blue-500/10", text: "text-blue-600", border: "border-blue-500/30" };
+    return { bg: "bg-gray-500/10", text: "text-gray-600", border: "border-gray-500/30" };
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -1267,105 +1275,129 @@ function InsiderKnowledgeTab({
       ) : congressData && congressData.length > 0 ? (
         /* Trades List */
         <div className="grid gap-4">
-          {congressData.slice(0, 10).map((person, index) => (
-            <motion.div
-              key={`${person.id || index}`}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="bg-card rounded-2xl border border-border overflow-hidden hover:shadow-lg transition-shadow"
-            >
-              <div className="p-6">
-                <div className="flex items-start gap-4">
-                  {/* Member Photo */}
-                  <div className="relative shrink-0">
-                    <div className="size-16 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden">
-                      {person.photo_url ? (
-                        <img
-                          src={person.photo_url}
-                          alt={person.name || "Congress Member"}
-                          className="size-full object-cover"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
-                            const parent = (e.target as HTMLImageElement).parentElement;
-                            if (parent) {
-                              parent.innerHTML = `<span class="text-lg font-bold text-primary">${(person.name || 'C').split(' ').map((n: string) => n[0]).join('')}</span>`;
-                            }
-                          }}
-                        />
-                      ) : (
-                        <span className="text-lg font-bold text-primary">
-                          {(person.name || 'C').split(' ').map((n: string) => n[0]).join('')}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Member Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-semibold text-foreground text-lg">
-                        {person.name || "Unknown Member"}
-                      </h3>
-                      {person.party && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                          {person.party} ({person.state || "N/A"})
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {person.office || "U.S. Congress"}
-                    </p>
-
-                    {/* Trade Details Grid */}
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
-                      <div>
-                        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
-                          Transaction Type
-                        </p>
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium ${
-                            (person.trade_type?.toLowerCase() || "").includes("buy")
-                              ? "bg-emerald-500/10 text-emerald-600"
-                              : (person.trade_type?.toLowerCase() || "").includes("sell")
-                              ? "bg-red-500/10 text-red-600"
-                              : "bg-amber-500/10 text-amber-600"
-                          }`}
-                        >
-                          {(person.trade_type?.toLowerCase() || "").includes("buy") ? (
-                            <TrendingUp className="size-3.5" />
-                          ) : (person.trade_type?.toLowerCase() || "").includes("sell") ? (
-                            <TrendingDown className="size-3.5" />
-                          ) : (
-                            <Activity className="size-3.5" />
-                          )}
-                          {person.trade_type?.toUpperCase() || "UNKNOWN"}
+          {congressData.map((person, index) => {
+            const partyColors = getPartyColor(person.party);
+            
+            return (
+              <motion.div
+                key={person.id || index}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className="bg-card rounded-2xl border border-border overflow-hidden hover:shadow-lg transition-shadow"
+              >
+                <div className="p-6">
+                  <div className="flex items-start gap-4">
+                    {/* Member Photo */}
+                    <div className="relative shrink-0">
+                      <div className="size-16 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden">
+                        {person.photo_url ? (
+                          <img
+                            src={person.photo_url}
+                            alt={person.name || "Congress Member"}
+                            className="size-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                              const parent = (e.target as HTMLImageElement).parentElement;
+                              if (parent) {
+                                parent.innerHTML = `<span class="text-lg font-bold text-primary">${(person.name || 'C').split(' ').map((n: string) => n[0]).join('')}</span>`;
+                              }
+                            }}
+                          />
+                        ) : (
+                          <span className="text-lg font-bold text-primary">
+                            {(person.name || 'C').split(' ').map((n: string) => n[0]).join('')}
+                          </span>
+                        )}
+                      </div>
+                      {/* Party indicator */}
+                      <div className={`absolute -bottom-1 -right-1 size-5 rounded-full ${partyColors.bg} ${partyColors.border} border flex items-center justify-center`}>
+                        <span className={`text-[10px] font-bold ${partyColors.text}`}>
+                          {person.party?.charAt(0) || "?"}
                         </span>
                       </div>
+                    </div>
 
-                      <div>
-                        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
-                          Amount
-                        </p>
-                        <p className="font-semibold text-foreground font-mono">
-                          {person.size || person.amount || "N/A"}
-                        </p>
+                    {/* Member Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-semibold text-foreground text-lg">
+                          {person.name || "Unknown Member"}
+                        </h3>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${partyColors.bg} ${partyColors.text} font-medium`}>
+                          {person.party || "Unknown"} • {person.state || "N/A"}
+                        </span>
                       </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        U.S. Congress
+                      </p>
 
-                      <div>
-                        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
-                          Trade Date
-                        </p>
-                        <p className="font-medium text-foreground">
-                          {person.trade_date || person.transactionDate || "N/A"}
-                        </p>
+                      {/* Trade Details Grid */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+                            Transaction
+                          </p>
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium ${
+                              person.trade_type?.toLowerCase() === "buy"
+                                ? "bg-emerald-500/10 text-emerald-600"
+                                : person.trade_type?.toLowerCase() === "sell"
+                                ? "bg-red-500/10 text-red-600"
+                                : "bg-amber-500/10 text-amber-600"
+                            }`}
+                          >
+                            {person.trade_type?.toLowerCase() === "buy" ? (
+                              <TrendingUp className="size-3.5" />
+                            ) : person.trade_type?.toLowerCase() === "sell" ? (
+                              <TrendingDown className="size-3.5" />
+                            ) : (
+                              <Activity className="size-3.5" />
+                            )}
+                            {person.trade_type?.toUpperCase() || "UNKNOWN"}
+                          </span>
+                        </div>
+
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+                            Amount
+                          </p>
+                          <p className="font-semibold text-foreground font-mono text-sm">
+                            {person.size || "N/A"}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+                            Trade Date
+                          </p>
+                          <p className="font-medium text-foreground text-sm">
+                            {person.trade_date || "N/A"}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+                            Filing Date
+                          </p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-medium text-foreground text-sm">
+                              {person.filing_date || "N/A"}
+                            </p>
+                            {person.reporting_gap && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                                {person.reporting_gap}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </div>
       ) : (
         <div className="bg-card rounded-2xl border border-border p-12 text-center">
