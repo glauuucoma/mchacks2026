@@ -18,6 +18,8 @@ from dotenv import load_dotenv
 load_dotenv()
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+AI_INVEST_TOKEN = os.getenv("AI_INVEST_TOKEN")
+EMAIL = os.getenv("EMAIL")
 
 if not GEMINI_API_KEY:
     raise ValueError("❌ CRITICAL ERROR: GEMINI_API_KEY is missing")
@@ -175,6 +177,10 @@ def check_status(scan_id: str):
 
     return MEMORY_DB[scan_id]
 
+# ======================================================
+# 5. DASHBOARDS
+# ======================================================
+
 @app.post("/api/get_news_headlines")
 def get_news_headlines(data: dict):
     ticker = data['ticker']
@@ -204,8 +210,58 @@ def get_news_headlines(data: dict):
         "status_code": response.status_code
     }
 
+@app.post("/api/get_congress_activity")
+def get_congress_activity(data: dict):
+    ticker = data['ticker']
+    page = data.get('page', 1)
+    size = data.get('size', 10)
+
+    # Get congress stock sales
+    url = f"https://openapi.ainvest.com/open/ownership/congress?ticker={ticker}&page={page}&size={size}"
+    headers = {"Authorization": f"Bearer {AI_INVEST_TOKEN}"}
+    response = requests.get(url, headers=headers)
+
+    congress_data = response.json()['data']['data']
+
+    # Add photos
+    for congress_datum in congress_data:
+        person_name = congress_datum['name']
+        photo_url = get_wikipedia_image(person_name)
+        congress_datum['photo_url'] = photo_url
+    
+    return {
+        "congress_data": congress_data,
+        'message': "success"
+    }
+
+def get_wikipedia_image(person_name):
+    search_url = "https://en.wikipedia.org/w/api.php"
+    
+    # Wikipedia requires a User-Agent header
+    headers = {
+        "User-Agent": f"MyApp/1.0 ({EMAIL})"  # Use your actual email
+    }
+    
+    search_params = {
+        "action": "query",
+        "format": "json",
+        "titles": person_name,
+        "prop": "pageimages",
+        "piprop": "original"
+    }
+    
+    response = requests.get(search_url, params=search_params, headers=headers)
+    data = response.json()
+    pages = data['query']['pages']
+    
+    for page_id, page_data in pages.items():
+        if 'original' in page_data:
+            return page_data['original']['source']
+    
+    return None
+
 # ======================================================
-# 5. RUN
+# 6. RUN
 # ======================================================
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
