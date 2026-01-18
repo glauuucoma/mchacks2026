@@ -163,6 +163,8 @@ export default function StockDetailPage() {
 
   const [isMetricsExpanded, setIsMetricsExpanded] = useState(false);
   const [isCompanyInfoExpanded, setIsCompanyInfoExpanded] = useState(false);
+  const [recommendation, setRecommendation] = useState<string | null>(null);
+  const [isLoadingRecommendation, setIsLoadingRecommendation] = useState(false);
 
   // Get preferences from store
   const { sourceWeights } = usePreferencesStore();
@@ -249,6 +251,31 @@ export default function StockDetailPage() {
     });
   }, []);
 
+  const fetchRecommendation = useCallback(async () => {
+    setIsLoadingRecommendation(true);
+    try {
+      const response = await fetch("http://127.0.0.1:8000/recommendation", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify("GOOG"),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.text();
+      setRecommendation(data);
+    } catch (error) {
+      console.error("Error fetching recommendation:", error);
+      setRecommendation("Error loading recommendation");
+    } finally {
+      setIsLoadingRecommendation(false);
+    }
+  }, []);
+
   const isPositive = (stock?.quote?.dp ?? 0) >= 0;
 
   // Stock context for AI chat
@@ -282,6 +309,25 @@ export default function StockDetailPage() {
             </Button>
 
             <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="gap-2"
+                onClick={fetchRecommendation}
+                disabled={isLoadingRecommendation}
+              >
+                {isLoadingRecommendation ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    <span className="hidden sm:inline">Loading...</span>
+                  </>
+                ) : (
+                  <>
+                    <Target className="size-4" />
+                    <span className="hidden sm:inline">Get Recommendation</span>
+                  </>
+                )}
+              </Button>
               <Button variant="outline" size="sm" className="gap-2">
                 <Bell className="size-4" />
                 <span className="hidden sm:inline">Set Alert</span>
@@ -301,6 +347,19 @@ export default function StockDetailPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
+        {/* Recommendation Title Display */}
+        {recommendation && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            className="mb-8 text-center"
+          >
+            <h1 className="text-7xl md:text-8xl lg:text-9xl font-bold text-foreground leading-tight">
+              {recommendation}
+            </h1>
+          </motion.div>
+        )}
+        
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
             <Loader2 className="size-10 animate-spin text-muted-foreground" />
