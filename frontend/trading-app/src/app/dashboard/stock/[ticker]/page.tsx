@@ -60,11 +60,12 @@ import {
   CartesianGrid,
 } from "recharts";
 import usePreferencesStore, { type SourceWeights } from "@/store/preferences";
+import { congressService } from "@/lib/api/congress";
 
 // Tab types
 type TabType = "stock-info" | "insider-knowledge" | "ai-analysis";
 
-// Analysis steps for the mock loading
+// Analysis steps for the loading animation UI
 const ANALYSIS_STEPS = [
   { id: 1, title: "Fetching historical price data", duration: 1200 },
   { id: 2, title: "Analyzing trading patterns", duration: 1500 },
@@ -92,17 +93,14 @@ interface AnalysisResult {
   };
 }
 
-// Mock congressional trading data
-interface CongressTrade {
-  id: string;
-  memberName: string;
-  party: "Democrat" | "Republican" | "Independent";
-  state: string;
-  photo: string;
-  tradeSize: string;
-  tradeDate: string;
-  filingDate: string;
-  transactionType: "Buy" | "Sell";
+// Congress trading data from API
+interface CongressPerson {
+  name: string;
+  office: string;
+  type: string;
+  amount: string;
+  transactionDate: string;
+  photo_url?: string;
 }
 
 const TIME_RANGES: TimeRange[] = ["1D", "1W", "1M", "3M", "6M", "1Y", "5Y"];
@@ -112,32 +110,6 @@ const TABS = [
   { id: "insider-knowledge" as TabType, label: "Insider Knowledge", icon: Users },
   { id: "ai-analysis" as TabType, label: "AI Analysis", icon: Brain },
 ];
-
-// Mock data generator for congressional trades
-function generateMockCongressTrades(ticker: string): CongressTrade[] {
-  const members = [
-    { name: "Nancy Pelosi", party: "Democrat" as const, state: "CA", photo: "https://www.congress.gov/img/member/p000197_200.jpg" },
-    { name: "Dan Crenshaw", party: "Republican" as const, state: "TX", photo: "https://www.congress.gov/img/member/c001120_200.jpg" },
-    { name: "Josh Gottheimer", party: "Democrat" as const, state: "NJ", photo: "https://www.congress.gov/img/member/g000583_200.jpg" },
-    { name: "Pat Fallon", party: "Republican" as const, state: "TX", photo: "https://www.congress.gov/img/member/f000246_200.jpg" },
-    { name: "Ro Khanna", party: "Democrat" as const, state: "CA", photo: "https://www.congress.gov/img/member/k000389_200.jpg" },
-    { name: "Michael McCaul", party: "Republican" as const, state: "TX", photo: "https://www.congress.gov/img/member/m001157_200.jpg" },
-  ];
-  
-  const tradeSizes = ["$1,001 - $15,000", "$15,001 - $50,000", "$50,001 - $100,000", "$100,001 - $250,000", "$250,001 - $500,000", "$500,001 - $1,000,000"];
-  
-  return members.slice(0, Math.floor(Math.random() * 4) + 2).map((member, index) => ({
-    id: `${ticker}-${index}`,
-    memberName: member.name,
-    party: member.party,
-    state: member.state,
-    photo: member.photo,
-    tradeSize: tradeSizes[Math.floor(Math.random() * tradeSizes.length)],
-    tradeDate: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000).toLocaleDateString(),
-    filingDate: new Date(Date.now() - Math.random() * 45 * 24 * 60 * 60 * 1000).toLocaleDateString(),
-    transactionType: Math.random() > 0.3 ? "Buy" as const : "Sell" as const,
-  }));
-}
 
 export default function StockDetailPage() {
   const params = useParams();
@@ -166,11 +138,29 @@ export default function StockDetailPage() {
   const [recommendation, setRecommendation] = useState<string | null>(null);
   const [isLoadingRecommendation, setIsLoadingRecommendation] = useState(false);
 
+  // Congress data from API
+  const [congressData, setCongressData] = useState<CongressPerson[]>([]);
+  const [isCongressLoading, setIsCongressLoading] = useState(false);
+
   // Get preferences from store
   const { sourceWeights } = usePreferencesStore();
 
-  // Mock congressional trades
-  const congressTrades = useMemo(() => generateMockCongressTrades(ticker), [ticker]);
+  // Handle tab change and fetch congress data when needed
+  const handleTabChange = async (tab: TabType) => {
+    setActiveTab(tab);
+    if (tab === "insider-knowledge" && congressData.length === 0) {
+      setIsCongressLoading(true);
+      try {
+        const data = await congressService.getActivity(ticker);
+        setCongressData(data?.congress_data || data?.data || []);
+      } catch (error) {
+        console.error("Failed to fetch congress data:", error);
+        setCongressData([]);
+      } finally {
+        setIsCongressLoading(false);
+      }
+    }
+  };
 
   // Calculate price change from chart data
   const chartPriceChange = useMemo(() => {
@@ -456,7 +446,7 @@ export default function StockDetailPage() {
                   return (
                     <button
                       key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
+                      onClick={() => handleTabChange(tab.id)}
                       className={`relative flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors ${
                         isActive
                           ? "text-foreground"
@@ -505,7 +495,8 @@ export default function StockDetailPage() {
               {activeTab === "insider-knowledge" && (
                 <InsiderKnowledgeTab
                   key="insider-knowledge"
-                  trades={congressTrades}
+                  congressData={congressData}
+                  isLoading={isCongressLoading}
                   ticker={ticker}
                 />
               )}
@@ -1271,10 +1262,12 @@ function StockInfoTab({
 
 // Insider Knowledge Tab Component
 function InsiderKnowledgeTab({
-  trades,
+  congressData,
+  isLoading,
   ticker,
 }: {
-  trades: CongressTrade[];
+  congressData: CongressPerson[];
+  isLoading: boolean;
   ticker: string;
 }) {
   return (
@@ -1303,12 +1296,20 @@ function InsiderKnowledgeTab({
         </p>
       </div>
 
-      {/* Trades List */}
-      {trades.length > 0 ? (
+      {/* Loading State */}
+      {isLoading ? (
+        <div className="bg-card rounded-2xl border border-border p-12">
+          <div className="flex flex-col items-center justify-center">
+            <Loader2 className="size-8 animate-spin text-muted-foreground mb-4" />
+            <p className="text-sm text-muted-foreground">Loading congressional trading data...</p>
+          </div>
+        </div>
+      ) : congressData.length > 0 ? (
+        /* Trades List */
         <div className="grid gap-4">
-          {trades.map((trade, index) => (
+          {congressData.slice(0, 10).map((person, index) => (
             <motion.div
-              key={trade.id}
+              key={`${person.name}-${index}`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
@@ -1318,24 +1319,25 @@ function InsiderKnowledgeTab({
                 <div className="flex items-start gap-4">
                   {/* Member Photo */}
                   <div className="relative shrink-0">
-                    <img
-                      src={trade.photo}
-                      alt={trade.memberName}
-                      className="size-16 rounded-xl object-cover bg-muted"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(trade.memberName)}&background=333&color=fff&size=128`;
-                      }}
-                    />
-                    <div
-                      className={`absolute -bottom-1 -right-1 size-6 rounded-full border-2 border-card flex items-center justify-center text-xs font-bold ${
-                        trade.party === "Democrat"
-                          ? "bg-blue-500 text-white"
-                          : trade.party === "Republican"
-                          ? "bg-red-500 text-white"
-                          : "bg-gray-500 text-white"
-                      }`}
-                    >
-                      {trade.party.charAt(0)}
+                    <div className="size-16 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden">
+                      {person.photo_url ? (
+                        <img
+                          src={person.photo_url}
+                          alt={person.name}
+                          className="size-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                            const parent = (e.target as HTMLImageElement).parentElement;
+                            if (parent) {
+                              parent.innerHTML = `<span class="text-lg font-bold text-primary">${person.name.split(' ').map(n => n[0]).join('')}</span>`;
+                            }
+                          }}
+                        />
+                      ) : (
+                        <span className="text-lg font-bold text-primary">
+                          {person.name.split(' ').map(n => n[0]).join('')}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -1343,70 +1345,54 @@ function InsiderKnowledgeTab({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-semibold text-foreground text-lg">
-                        {trade.memberName}
+                        {person.name}
                       </h3>
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                          trade.party === "Democrat"
-                            ? "bg-blue-500/10 text-blue-600"
-                            : trade.party === "Republican"
-                            ? "bg-red-500/10 text-red-600"
-                            : "bg-gray-500/10 text-gray-600"
-                        }`}
-                      >
-                        {trade.party}
-                      </span>
-                      <span className="text-sm text-muted-foreground">
-                        {trade.state}
-                      </span>
                     </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {person.office}
+                    </p>
 
                     {/* Trade Details Grid */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
                       <div>
                         <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
-                          Transaction
+                          Transaction Type
                         </p>
                         <span
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium ${
-                            trade.transactionType === "Buy"
+                            person.type.toLowerCase().includes("purchase") || person.type.toLowerCase().includes("buy")
                               ? "bg-emerald-500/10 text-emerald-600"
-                              : "bg-red-500/10 text-red-600"
+                              : person.type.toLowerCase().includes("sale") || person.type.toLowerCase().includes("sell")
+                              ? "bg-red-500/10 text-red-600"
+                              : "bg-amber-500/10 text-amber-600"
                           }`}
                         >
-                          {trade.transactionType === "Buy" ? (
+                          {person.type.toLowerCase().includes("purchase") || person.type.toLowerCase().includes("buy") ? (
                             <TrendingUp className="size-3.5" />
-                          ) : (
+                          ) : person.type.toLowerCase().includes("sale") || person.type.toLowerCase().includes("sell") ? (
                             <TrendingDown className="size-3.5" />
+                          ) : (
+                            <Activity className="size-3.5" />
                           )}
-                          {trade.transactionType}
+                          {person.type}
                         </span>
                       </div>
 
                       <div>
                         <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
-                          Trade Size
+                          Amount
                         </p>
-                        <p className="font-semibold text-foreground">
-                          {trade.tradeSize}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
-                          Trade Date
-                        </p>
-                        <p className="font-medium text-foreground">
-                          {trade.tradeDate}
+                        <p className="font-semibold text-foreground font-mono">
+                          {person.amount}
                         </p>
                       </div>
 
                       <div>
                         <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
-                          Filing Date
+                          Transaction Date
                         </p>
                         <p className="font-medium text-foreground">
-                          {trade.filingDate}
+                          {person.transactionDate}
                         </p>
                       </div>
                     </div>
