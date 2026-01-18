@@ -1,51 +1,70 @@
-import argparse, pandas as pd, numpy as np, warnings
-import pandas_ta as ta
-warnings.filterwarnings('ignore')  # Suppress warnings
+# build_features_regression.py
+import argparse
+import pandas as pd
+import numpy as np
+import warnings
 
-def compute_rsi(prices, window=14):
-    delta = prices.diff()
-    gain = delta.where(delta > 0, 0).rolling(window=window).mean()
-    loss = -delta.where(delta < 0, 0).rolling(window=window).mean()
+warnings.filterwarnings("ignore")
+
+def rsi(series, window=14):
+    delta = series.diff()
+    gain = delta.clip(lower=0).rolling(window).mean()
+    loss = -delta.clip(upper=0).rolling(window).mean()
     rs = gain / loss
-    rsi = 100 - (100 / (1 + rs))
-    return rsi
+    return 100 - (100 / (1 + rs))
 
-def main(symbol):
-    csv_file = f'{symbol.lower()}_data.csv'
-    df = pd.read_csv(f'{symbol.lower()}_data.csv', index_col=0, parse_dates=True)
-    
-    # Force numeric (handles strings/None)
-    for col in ['Open', 'High', 'Low', 'Close', 'Volume']:
-        df[col] = pd.to_numeric(df[col], errors='coerce')
-    
-    df.dropna(subset=['Close'], inplace=True)  # Drop bad rows
-    
-    # Features
-    df['Returns'] = df['Close'].pct_change()
-    df['RSI'] = compute_rsi(df['Close'])
-    
+def main(symbol, output_dir):
+    df = pd.read_csv(
+        f"{output_dir}/{symbol}_data.csv",
+        parse_dates=["Date"],
+        index_col="Date"
+    )
+
+    df = df.astype(float)
+
+    # Returns
+    df["ret_1d"] = df["Close"].pct_change()
+    df["ret_5d"] = df["Close"].pct_change(5)
+
+    # Trend
+    df["sma_10"] = df["Close"].rolling(10).mean()
+    df["sma_20"] = df["Close"].rolling(20).mean()
+    df["sma_50"] = df["Close"].rolling(50).mean()
+    df["trend_50"] = df["Close"] / df["sma_50"]
+
+    # Momentum
+    df["RSI"] = rsi(df["Close"])
+
     # MACD
-    ema12 = df['Close'].ewm(span=12).mean()
-    ema26 = df['Close'].ewm(span=26).mean()
-    df['MACD'] = ema12 - ema26
-    
-    # ATR
-    tr1 = df['High'] - df['Low']
-    tr2 = abs(df['High'] - df['Close'].shift())
-    tr3 = abs(df['Low'] - df['Close'].shift())
-    tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
-    df['ATR'] = tr.rolling(14).mean()
-    
-    # Target (thresholded returns)
-    df['Target'] = np.where(df['Returns'].shift(-1) > 0.01, 2,    # BUY >1%
-                           np.where(df['Returns'].shift(-1) < -0.01, 0, 1))  # SELL <-1%
-    
+    ema12 = df["Close"].ewm(span=12).mean()
+    ema26 = df["Close"].ewm(span=26).mean()
+    df["MACD"] = ema12 - ema26
+
+    # Volatility (ATR)
+    tr = pd.concat([
+        df["High"] - df["Low"],
+        (df["High"] - df["Close"].shift()).abs(),
+        (df["Low"] - df["Close"].shift()).abs()
+    ], axis=1).max(axis=1)
+
+    df["ATR"] = tr.rolling(14).mean()
+    df["ATR_pct"] = df["ATR"] / df["Close"]
+
+    # Volume
+    df["vol_chg"] = df["Volume"].pct_change()
+    df["vol_norm"] = df["Volume"] / df["Volume"].rolling(20).mean()
+
+    # -------- TARGET (REGRESSION) --------
+    # Log return is more stable
+    df["target"] = np.log(df["Close"].shift(-5) / df["Close"])
+
     df.dropna(inplace=True)
-    df.to_csv(f'{symbol.lower()}_features.csv')
+    df.to_csv(f"{output_dir}/{symbol}_features_reg.csv")
+    print("✅ Regression features saved")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("symbol", nargs="?")
+    parser.add_argument("symbol")
+    parser.add_argument("output_dir", nargs="?", default=".")
     args = parser.parse_args()
-    if args.symbol:
-        main(args.symbol)
+    main(args.symbol, args.output_dir)

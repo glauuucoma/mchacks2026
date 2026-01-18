@@ -1,101 +1,141 @@
-import argparse, torch, torch.nn as nn, numpy as np, pandas as pd
-from xml.parsers.expat import model
-from torch.utils.data import DataLoader, TensorDataset
+# train_regression_model.py
+import argparse
+import torch
+import torch.nn as nn
+import numpy as np
+import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import accuracy_score
-import pandas_ta as ta
+from torch.utils.data import DataLoader, TensorDataset
 
-class StockLSTM(nn.Module):
-    def __init__(self, input_size=5, hidden_size=50, num_layers=2):  # 10 features
+SEQ_LEN = 60
+THRESH_MULT = 0.5  # ATR multiplier
+
+FEATURES = [
+    "Close", "Volume", "RSI", "MACD", "ATR_pct",
+    "ret_1d", "ret_5d", "trend_50", "vol_norm"
+]
+
+class GRURegressor(nn.Module):
+    def __init__(self, input_size):
         super().__init__()
-        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, dropout=0.2)
-        self.fc = nn.Linear(hidden_size, 3)  # 3 classes: buy/sell/hold
-        self.softmax = nn.Softmax(dim=1)
-    
+        self.gru = nn.GRU(input_size, 64, num_layers=2, batch_first=True)
+        self.fc = nn.Linear(64, 1)
+
     def forward(self, x):
-        lstm_out, _ = self.lstm(x)
-        out = self.fc(lstm_out[:, -1, :])  # Last timestep
-        return self.softmax(out)  # Probabilities
+        out, _ = self.gru(x)
+        return self.fc(out[:, -1]).squeeze(1)
 
-def prepare_data(df, seq_length=60):
-    features = ['Close', 'Volume', 'RSI', 'MACD', 'ATR']
+def make_sequences(X, y):
+    xs, ys = [], []
+    for i in range(SEQ_LEN, len(X)):
+        xs.append(X[i-SEQ_LEN:i])
+        ys.append(y[i])
+    return np.array(xs), np.array(ys)
+
+def train(symbol, output_dir):
+    df = pd.read_csv(
+        f"{output_dir}/{symbol}_features_reg.csv",
+        parse_dates=["Date"],
+        index_col="Date"
+    )
+
+    split = int(len(df) * 0.8)
+    train_df = df.iloc[:split]
+    test_df = df.iloc[split:]
+
     scaler = MinMaxScaler()
-    scaled = scaler.fit_transform(df[features].dropna())
-    
-    X, y = [], []
-    for i in range(seq_length, len(scaled)):
-        X.append(scaled[i-seq_length:i])
-        # Label: 0=SELL (RSI>70), 1=HOLD (30-70), 2=BUY (RSI<30)
-        rsi = df['RSI'].iloc[i]
-        if rsi < 30: y.append(2)
-        elif rsi > 70: y.append(0)
-        else: y.append(1)
-    
-    return np.array(X), np.array(y), scaler, features
+    scaler.fit(train_df[FEATURES])
 
-def train_model(symbol):
-    df = pd.read_csv(f'{symbol.lower()}_features.csv', index_col=0, parse_dates=True)
-    df.dropna(inplace=True)
-    
-    X, y, scaler, features = prepare_data(df)
-    
-    # Train/test split
-    split = int(0.8 * len(X))
-    X_train, X_test = X[:split], X[split:]
-    y_train, y_test = y[:split], y[split:]
-    
-    # PyTorch datasets
-    train_ds = TensorDataset(torch.FloatTensor(X_train), torch.LongTensor(y_train))
-    test_ds = TensorDataset(torch.FloatTensor(X_test), torch.LongTensor(y_test))
-    train_loader = DataLoader(train_ds, batch_size=32, shuffle=True)
-    
-    # Model
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = StockLSTM().to(device)
-    criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    
-    # Train
-    model.train()
-    for epoch in range(50):
-        total_loss = 0
-        for batch_X, batch_y in train_loader:
-            batch_X, batch_y = batch_X.to(device), batch_y.to(device)
+    X_train = scaler.transform(train_df[FEATURES])
+    X_test = scaler.transform(test_df[FEATURES])
+
+    y_train = train_df["target"].values
+    y_test = test_df["target"].values
+
+    X_train, y_train = make_sequences(X_train, y_train)
+    X_test, y_test = make_sequences(X_test, y_test)
+
+    train_ds = TensorDataset(
+        torch.tensor(X_train, dtype=torch.float32),
+        torch.tensor(y_train, dtype=torch.float32)
+    )
+
+    loader = DataLoader(train_ds, batch_size=32, shuffle=False)
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = GRURegressor(len(FEATURES)).to(device)
+
+    criterion = nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+
+    for epoch in range(40):
+        model.train()
+        losses = []
+        for xb, yb in loader:
+            xb, yb = xb.to(device), yb.to(device)
             optimizer.zero_grad()
-            outputs = model(batch_X)
-            loss = criterion(outputs, batch_y)
+            preds = model(xb)
+            loss = criterion(preds, yb)
             loss.backward()
             optimizer.step()
-            total_loss += loss.item()
-        if epoch % 10 == 0:
-            print(f'Epoch {epoch}, Loss: {total_loss/len(train_loader):.4f}')
-    
-    # Evaluate
-    model.eval()
-    with torch.no_grad():
-        test_preds = model(torch.FloatTensor(X_test).to(device)).cpu().numpy().argmax(1)
-    acc = accuracy_score(y_test, test_preds)
-    print(f'Test Accuracy: {acc:.3f}')
-    
-    # Predict LAST date
-    last_seq = torch.FloatTensor(X[-1:]).to(device)  # (1, seq_length, input_size)
-    model.eval()
-    with torch.no_grad():
-        probs = model(last_seq).cpu().numpy()[0]  # probs[3] for classes
+            losses.append(loss.item())
 
-    decisions = ['SELL', 'HOLD', 'BUY']
-    latest_rsi = df['RSI'].iloc[-1]
-    print(f"\nLatest RSI: {latest_rsi:.1f}")
-    for i, prob in enumerate(probs):
-        print(f"  {decisions[i]}: {prob:.1%}")
-    pred_class = np.argmax(probs)
-    print(f"\n🎯 RECOMMENDATION: {decisions[pred_class]} ({probs[pred_class]:.1%})")
+        if epoch % 10 == 0:
+            print(f"Epoch {epoch} | MSE {np.mean(losses):.6f}")
+
+    # ---------- WALK-FORWARD BACKTEST ----------
+    model.eval()
+    equity = 1.0
+    trades = 0
+
+    for i in range(len(X_test)):
+        seq = torch.tensor(X_test[i:i+1], dtype=torch.float32).to(device)
+        pred = model(seq).item()
+        atr = test_df["ATR_pct"].iloc[i + SEQ_LEN]
+
+        if pred > THRESH_MULT * atr:
+            equity *= np.exp(y_test[i])
+            trades += 1
+        elif pred < -THRESH_MULT * atr:
+            equity *= np.exp(-y_test[i])
+            trades += 1
+
+    print(f"\n📈 Backtest equity: {equity:.2f}")
+    print(f"🔁 Trades taken: {trades}")
+
+    # ---------- TODAY PREDICTION ----------
+    last_seq = scaler.transform(df[FEATURES].iloc[-SEQ_LEN:])
+    last_seq = torch.tensor(last_seq, dtype=torch.float32).unsqueeze(0).to(device)
+
+    with torch.no_grad():
+        pred = model(last_seq).item()
+
+    atr_today = df["ATR_pct"].iloc[-1]
+
+    if pred > THRESH_MULT * atr_today:
+        decision = "BUY"
+    elif pred < -THRESH_MULT * atr_today:
+        decision = "SELL"
+    else:
+        decision = "HOLD"
+
+    print("\n📅 TODAY")
+    print(f"Predicted 5d return: {pred:.4%}")
+    print(f"ATR threshold: {THRESH_MULT * atr_today:.4%}")
+    print(f"🎯 DECISION: {decision}")
+
+    torch.save({
+        "model": model.state_dict(),
+        "scaler": scaler,
+        "features": FEATURES,
+        "seq_len": SEQ_LEN
+    }, f"{output_dir}/{symbol}_reg_model.pth")
+
+    print("✅ Model saved")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("symbol", nargs="?")
+    parser.add_argument("symbol")
+    parser.add_argument("output_dir", nargs="?", default=".")
     args = parser.parse_args()
-    if args.symbol:
-        train_model(args.symbol)
-    else:
-        print("Usage: python train_model.py GOOG")
+    train(args.symbol, args.output_dir)
