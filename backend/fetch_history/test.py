@@ -7,8 +7,8 @@ import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader, TensorDataset
 
-SEQ_LEN = 60
-THRESH_MULT = 0.5
+SEQ_LEN = 60 #60 days in the past
+THRESH_MULT = 0.4  # buy/sell threshold
 
 FEATURES = [
     "Close", "Volume", "RSI", "MACD", "ATR_pct",

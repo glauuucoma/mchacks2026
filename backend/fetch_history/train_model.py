@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader, TensorDataset
 import joblib
 
 SEQ_LEN = 60 #60 days in the past
-THRESH_MULT = 0.5  # buy/sell threshold
+THRESH_MULT = 0.4  # buy/sell threshold
 
 FEATURES = [
     "Close", "Volume", "RSI", "MACD", "ATR_pct",
