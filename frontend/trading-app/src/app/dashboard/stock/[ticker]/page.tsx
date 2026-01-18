@@ -133,6 +133,7 @@ export default function StockDetailPage() {
   });
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [recommendation, setRecommendation] = useState<string | null>(null);
+  const [isLoadingRecommendation, setIsLoadingRecommendation] = useState(false);
 
   // ---------------------------------------------------------------------------
   // CONGRESS DATA STATE
@@ -331,62 +332,6 @@ export default function StockDetailPage() {
     }
   }, []);
 
-    // Recommendations from backend
-  const fetchMathFormula = useCallback(async (tickerParam: string): Promise<number> => {
-    setIsLoadingRecommendation(true);
-    try {
-      const response = await fetch(`http://127.0.0.1:8000/MathFormula?symbol=${tickerParam}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      // Check for error response
-      if (data.error) {
-        throw new Error(data.error);
-      }
-      
-      // Extract recommendation text - must be a valid string
-      if (!data.recommendation || typeof data.recommendation !== 'string') {
-        throw new Error("Invalid recommendation response from server");
-      }
-      
-      const recommendationText = data.recommendation;
-      
-      // Set the recommendation text for display
-      setRecommendation(recommendationText);
-      
-      // Convert recommendation to score: BUY = 50, SELL = -50, HOLD = 0
-      const upperText = recommendationText.toUpperCase();
-      let score: number;
-      if (upperText === "BUY") {
-        score = 50;
-      } else if (upperText === "SELL") {
-        score = -50;
-      } else if (upperText === "HOLD") {
-        score = 0;
-      } else {
-        throw new Error(`Invalid recommendation value: ${recommendationText}`);
-      }
-      
-      return score;
-    } catch (error) {
-      console.error("Error fetching recommendation:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to fetch recommendation";
-      setRecommendation(`Error: ${errorMessage}`);
-      throw error; // Re-throw to fail the website
-    } finally {
-      setIsLoadingRecommendation(false);
-    }
-  }, []);
-
   /** Run full AI analysis */
   const runAnalysis = useCallback(async () => {
     setAnalysis({
@@ -440,22 +385,6 @@ export default function StockDetailPage() {
       const errorMessage = error instanceof Error ? error.message : "ML model prediction failed";
       setRecommendation(`Error: ${errorMessage}`);
       throw error;
-    }
-
-    let mathScore: number;
-    try {
-      mathScore = await fetchMathFormula(ticker);
-    } catch (error) {
-      // Stop analysis and show error - no fallback
-      setAnalysis({
-        isAnalyzing: false,
-        currentStep: 0,
-        completedSteps: [],
-        result: null,
-      });
-      const errorMessage = error instanceof Error ? error.message : "Math prediction failed";
-      setRecommendation(`Error: ${errorMessage}`);
-      throw error; // Re-throw to fail the website
     }
 
     let mathScore: number;
