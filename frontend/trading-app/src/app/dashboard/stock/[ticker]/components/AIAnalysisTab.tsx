@@ -63,7 +63,7 @@ const SOURCE_INFO: Record<
     description: "AI prediction based on historical patterns and technical indicators",
   },
   "math-formula": {
-    label: "Math Formula",
+    label: "Math Formulas",
     icon: <Calculator className="size-5" />,
     description: "Mathematical prediction based on quantitative analysis",
   },
