@@ -14,6 +14,7 @@ import {
   TrendingUp,
   TrendingDown,
   Loader2,
+  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import useStocksStore, { SortField, SortDirection } from "@/store/stocks";
@@ -85,9 +86,11 @@ interface StockRowProps {
   stock: StockData;
   onRemove: (ticker: string) => void;
   onView: (ticker: string) => void;
+  onToggleFavorite: (ticker: string) => void;
+  isFavorite: boolean;
 }
 
-const StockRow = memo(function StockRow({ stock, onRemove, onView }: StockRowProps) {
+const StockRow = memo(function StockRow({ stock, onRemove, onView, onToggleFavorite, isFavorite }: StockRowProps) {
   return (
     <motion.tr
       layout
@@ -96,6 +99,21 @@ const StockRow = memo(function StockRow({ stock, onRemove, onView }: StockRowPro
       exit={{ opacity: 0, x: -20 }}
       className="group border-b border-border/50 hover:bg-muted/30 transition-colors"
     >
+      {/* Favorite Star */}
+      <td className="py-4 px-2">
+        <button
+          onClick={() => onToggleFavorite(stock.ticker)}
+          className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+            isFavorite
+              ? "text-yellow-500 hover:text-yellow-600"
+              : "opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-yellow-500 hover:bg-yellow-500/10"
+          }`}
+          aria-label={isFavorite ? `Remove ${stock.ticker} from favorites` : `Add ${stock.ticker} to favorites`}
+        >
+          <Star className={`size-4 ${isFavorite ? "fill-current" : ""}`} />
+        </button>
+      </td>
+
       {/* Ticker & Name */}
       <td className="py-4 px-4">
         <div className="flex items-center gap-3">
@@ -242,10 +260,12 @@ export default function StockList() {
 
   const {
     tickers,
+    favorites,
     sortField,
     sortDirection,
     addTicker,
     removeTicker,
+    toggleFavorite,
     setSortField,
     toggleSortDirection,
   } = useStocksStore();
@@ -282,12 +302,21 @@ export default function StockList() {
     [removeTicker]
   );
 
+  // Handle toggling favorite
+  const handleToggleFavorite = useCallback(
+    (ticker: string) => {
+      toggleFavorite(ticker);
+    },
+    [toggleFavorite]
+  );
+
   // Handle viewing stock details - navigate to stock detail page
   const handleViewStock = useCallback((ticker: string) => {
     router.push(`/dashboard/stock/${ticker.toLowerCase()}`);
   }, [router]);
 
   // Sort stocks (deduplicate by ticker first to avoid duplicate key errors)
+  // Favorites are always shown at the top
   const sortedStocks = useMemo(() => {
     if (!stocksData) return [];
 
@@ -300,12 +329,20 @@ export default function StockList() {
     });
 
     return uniqueStocks.sort((a, b) => {
+      // Favorites always come first
+      const aIsFavorite = favorites.includes(a.ticker);
+      const bIsFavorite = favorites.includes(b.ticker);
+      
+      if (aIsFavorite && !bIsFavorite) return -1;
+      if (!aIsFavorite && bIsFavorite) return 1;
+      
+      // Within same favorite status, sort by field
       const aValue = a[sortField];
       const bValue = b[sortField];
       const multiplier = sortDirection === "asc" ? 1 : -1;
       return (aValue - bValue) * multiplier;
     });
-  }, [stocksData, sortField, sortDirection]);
+  }, [stocksData, sortField, sortDirection, favorites]);
 
   return (
     <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
@@ -348,6 +385,7 @@ export default function StockList() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/30">
+              <th className="py-3 px-2 w-10"></th>
               <th className="py-3 px-4 text-left">
                 <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Stock
@@ -414,7 +452,7 @@ export default function StockList() {
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={9} className="py-16 text-center">
+                <td colSpan={10} className="py-16 text-center">
                   <div className="flex flex-col items-center gap-3">
                     <Loader2 className="size-8 animate-spin text-muted-foreground" />
                     <span className="text-muted-foreground">Loading stocks...</span>
@@ -423,7 +461,7 @@ export default function StockList() {
               </tr>
             ) : isError ? (
               <tr>
-                <td colSpan={9} className="py-16 text-center">
+                <td colSpan={10} className="py-16 text-center">
                   <div className="flex flex-col items-center gap-3">
                     <span className="text-destructive">Failed to load stocks</span>
                     <Button variant="outline" size="sm">
@@ -434,7 +472,7 @@ export default function StockList() {
               </tr>
             ) : sortedStocks.length === 0 ? (
               <tr>
-                <td colSpan={9} className="py-16 text-center">
+                <td colSpan={10} className="py-16 text-center">
                   <div className="flex flex-col items-center gap-3">
                     <div className="size-12 rounded-full bg-muted flex items-center justify-center">
                       <Search className="size-5 text-muted-foreground" />
@@ -453,6 +491,8 @@ export default function StockList() {
                     stock={stock}
                     onRemove={handleRemoveTicker}
                     onView={handleViewStock}
+                    onToggleFavorite={handleToggleFavorite}
+                    isFavorite={favorites.includes(stock.ticker)}
                   />
                 ))}
               </AnimatePresence>

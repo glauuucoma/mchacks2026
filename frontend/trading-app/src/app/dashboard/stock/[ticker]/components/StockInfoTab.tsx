@@ -55,7 +55,6 @@ import {
   formatVolume,
   formatChange,
 } from "@/components/dashboard/utils";
-import AskAIChat from "@/components/dashboard/AskAIChat";
 import {
   AreaChart,
   Area,
@@ -76,7 +75,6 @@ import { useNewsHeadlines, type Article } from "@/lib/api/news";
 interface StockInfoTabProps {
   stock: any;
   ticker: string;
-  stockContext: any;
   candleData: any;
   candlesLoading: boolean;
   chartPriceChange: { change: number; changePercent: number; isPositive: boolean } | null;
@@ -100,12 +98,10 @@ interface StockInfoTabProps {
 function SummarySection({
   stock,
   ticker,
-  stockContext,
   isPositive,
 }: {
   stock: any;
   ticker: string;
-  stockContext: any;
   isPositive: boolean;
 }) {
   return (
@@ -120,9 +116,6 @@ function SummarySection({
           <Layers className="size-4 text-primary" />
           Summary
         </h3>
-        <div className="relative">
-          <AskAIChat stockContext={stockContext} />
-        </div>
       </div>
       <p className="text-muted-foreground leading-relaxed">
         <span className="font-medium text-foreground">
@@ -285,7 +278,7 @@ function PriceChartSection({
               <button
                 key={range}
                 onClick={() => setSelectedRange(range)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer ${
                   selectedRange === range
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -882,7 +875,6 @@ function AIAnalysisSidebar({
 export function StockInfoTab({
   stock,
   ticker,
-  stockContext,
   candleData,
   candlesLoading,
   chartPriceChange,
@@ -910,7 +902,6 @@ export function StockInfoTab({
         <SummarySection
           stock={stock}
           ticker={ticker}
-          stockContext={stockContext}
           isPositive={isPositive}
         />
 

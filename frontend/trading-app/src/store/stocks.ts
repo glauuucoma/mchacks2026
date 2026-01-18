@@ -6,11 +6,14 @@ export type SortDirection = "asc" | "desc";
 
 interface StocksState {
   tickers: string[];
+  favorites: string[];
   sortField: SortField;
   sortDirection: SortDirection;
   addTicker: (ticker: string) => void;
   removeTicker: (ticker: string) => void;
   setTickers: (tickers: string[]) => void;
+  toggleFavorite: (ticker: string) => void;
+  isFavorite: (ticker: string) => boolean;
   setSortField: (field: SortField) => void;
   toggleSortDirection: () => void;
   setSortDirection: (direction: SortDirection) => void;
@@ -18,9 +21,10 @@ interface StocksState {
 
 const useStocksStore = create<StocksState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       // Initial test tickers
       tickers: ["AAPL", "GOOGL", "MSFT"],
+      favorites: [],
       sortField: "marketCap",
       sortDirection: "desc",
 
@@ -36,9 +40,21 @@ const useStocksStore = create<StocksState>()(
       removeTicker: (ticker) =>
         set((state) => ({
           tickers: state.tickers.filter((t) => t !== ticker),
+          favorites: state.favorites.filter((t) => t !== ticker),
         })),
 
       setTickers: (tickers) => set({ tickers }),
+
+      toggleFavorite: (ticker) =>
+        set((state) => {
+          const upperTicker = ticker.toUpperCase().trim();
+          if (state.favorites.includes(upperTicker)) {
+            return { favorites: state.favorites.filter((t) => t !== upperTicker) };
+          }
+          return { favorites: [...state.favorites, upperTicker] };
+        }),
+
+      isFavorite: (ticker) => get().favorites.includes(ticker.toUpperCase().trim()),
 
       setSortField: (field) =>
         set((state) => ({
