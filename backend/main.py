@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 # 1. SETUP
 # ======================================================
 load_dotenv()
+NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 if not GEMINI_API_KEY:
@@ -176,14 +177,12 @@ def check_status(scan_id: str):
 
 @app.post("/api/get_news_headlines")
 def get_news_headlines(data: dict):
-    NEWS_API_KEY = '1071542b8f1c470786eb6ccf87080daf'
-    
     ticker = data['ticker']
     day_offset = data.get('day_offset', 3)
+
     print(f"📰 Fetching news headlines for {ticker}")
 
     BASE_NEWS_API_URL = 'https://newsapi.org/v2/everything?'
-
     sort_by = "popularity"
     from_date = (datetime.datetime.now() - datetime.timedelta(days=day_offset)).strftime('%Y-%m-%d')
 
