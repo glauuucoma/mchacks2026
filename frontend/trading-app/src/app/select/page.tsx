@@ -93,7 +93,7 @@ export default function SelectPage() {
     } else {
       console.log("Sectors:", selectedSectors);
       console.log("Sources:", selectedSources);
-      router.push("/select/step2");
+      router.push("/dashboard");
     }
   }, [step, selectedSectors, selectedSources, router]);
 
@@ -103,12 +103,6 @@ export default function SelectPage() {
 
       {/* Content */}
       <div className="relative z-10 container mx-auto px-6 py-8">
-        {/* Navigation */}
-        <nav className="flex items-center justify-between mb-[60px]">
-          <div className="text-2xl font-semibold text-[#333] tracking-tight">
-            Trading
-          </div>
-        </nav>
 
         {/* Main Content */}
         <div className="max-w-2xl mx-auto">

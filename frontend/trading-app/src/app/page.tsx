@@ -1,10 +1,11 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useUser } from "@auth0/nextjs-auth0/client";
 import { TrendingUp, BarChart3, Activity, ArrowRight } from "lucide-react";
 import dynamic from "next/dynamic";
-import ProfileBanner from "../components/login-profile/ProfileBanner"
+import Link from "next/link";
+import { useUser } from "@auth0/nextjs-auth0/client";
+import { motion } from "framer-motion";
 
 // Lazy load chart to prevent hydration mismatch from Math.random()
 const BackgroundChart = dynamic(
@@ -14,71 +15,65 @@ const BackgroundChart = dynamic(
 
 export default function Home() {
   const { user, isLoading } = useUser();
+  
+  // If user is not logged in, redirect to login page. Otherwise go to dashboard
+  const getExploreMarketHref = () => {
+    if (isLoading) return "#"; // Prevent navigation while loading
+    return user ? "/dashboard" : "/auth/login?returnTo=/dashboard";
+  };
 
   return (
-    <div className="relative min-h-screen bg-white overflow-hidden">
+    <div className="relative max-h-screen bg-white overflow-hidden">
       {/* Background Chart */}
       <BackgroundChart />
 
       {/* Content */}
-      <div className="relative z-10 container mx-auto px-6 py-8">
-        {/* Navigation */}
-        <nav className="flex items-center justify-between mb-[110px]">
-          <div className="text-2xl font-semibold text-[#333] tracking-tight">
-            Trading
-          </div>
-          <div className="flex items-center gap-6">
-            {!isLoading && (
-                user ? (
-                  <>
-                    <ProfileBanner />
-                    <Button
-                      variant="outline"
-                      className="relative border-[#333] text-[#333] bg-transparent overflow-hidden group whitespace-nowrap shrink-0"
-                      asChild
-                    >
-                    </Button>
-                  </>
-                ) : (
-                  <Button
-                    variant="outline"
-                    className="relative border-[#333] text-[#333] bg-transparent overflow-hidden group whitespace-nowrap shrink-0 focus:outline-none"
-                    asChild
-                  >
-                    <a href="/auth/login" className="relative z-10 focus:outline-none">
-                      <span className="relative z-10 text-[#333] group-hover:text-white transition-colors duration-300 delay-150">
-                        Sign In
-                      </span>
-                      <div className="absolute inset-0 bg-[#333] z-0 scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left" />
-                    </a>
-                  </Button>
-                )
-            )}
-          </div>
-        </nav>
-
+      <div className="relative z-10 container mx-auto px-6 pt-0 pb-8">
         {/* Hero Section */}
-        <div className="max-w-4xl mx-auto text-center mb-[150px]">
-          <h1 className="text-6xl md:text-7xl font-semibold text-[#333] mb-2 tracking-tight leading-tight">
+        <motion.div 
+          className="max-w-4xl mx-auto text-center mt-[80px] mb-[150px]"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+        >
+          <motion.h1 
+            className="text-6xl md:text-7xl font-semibold text-[#333] mb-2 tracking-tight leading-tight"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
+          >
             Investing Made Easy
-          </h1>
-          <p className="text-lg text-[#333]/50 font-medium mb-10 max-w-2xl mx-auto leading-relaxed">
+          </motion.h1>
+          <motion.p 
+            className="text-lg text-[#333]/50 font-medium mb-10 max-w-2xl mx-auto leading-relaxed"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
+          >
             Advanced sentiment analysis meets intelligent trading.
-          </p>
-          <div className="flex items-center justify-center gap-4">
+          </motion.p>
+          <motion.div 
+            className="flex items-center justify-center gap-4"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
+          >
             <div>
               <Button
+                asChild
                 size="lg"
                 className="bg-[#333] text-white hover:bg-[#333]/95 h-10 px-8 rounded-3xl focus:outline-none"
               >
-                Explore market
-                <ArrowRight className="ml-2 size-4" />
+                <Link href={getExploreMarketHref()}>
+                  Explore market
+                  <ArrowRight className="ml-2 size-4" />
+                </Link>
               </Button>
             </div>
             <div>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
 
         {/* Features Grid */}
         <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto mb-[50px]">

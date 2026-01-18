@@ -1,7 +1,7 @@
 'use client'
 
 import { useUser } from "@auth0/nextjs-auth0/client";
-import { LogOut, LayoutDashboard } from 'lucide-react'
+import { LogOut, LayoutDashboard, Settings2 } from 'lucide-react'
 import Link from 'next/link'
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
@@ -14,6 +14,14 @@ import {
 
 export const ProfileBanner = () => {
   const { user } = useUser();
+  
+  const getLogoutUrl = () => {
+    if (typeof window !== 'undefined') {
+      const returnTo = `${window.location.origin}/`;
+      return `/auth/logout?returnTo=${encodeURIComponent(returnTo)}`;
+    }
+    return '/auth/logout';
+  };
 
   return (
     <DropdownMenu>
@@ -41,8 +49,14 @@ export const ProfileBanner = () => {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild className='focus:outline-none'>
+          <Link href="/preferences" className="w-full flex items-center gap-2 cursor-pointer text-[#333] hover:text-[#333]/70 transition-colors">
+            <Settings2 className="size-4" />
+            <span>Preferences</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild className='focus:outline-none'>
           <a 
-            href="/auth/logout?returnTo=http://localhost:3000" 
+            href={getLogoutUrl()}
             className="w-full flex items-center gap-2 cursor-pointer text-[#333] hover:text-[#333]/70 transition-colors"
           >
             <LogOut className="size-4" />
