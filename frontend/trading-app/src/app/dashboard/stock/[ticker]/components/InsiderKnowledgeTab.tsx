@@ -46,10 +46,10 @@ interface InsiderKnowledgeTabProps {
 function getPartyColor(party: string) {
   const p = party?.toLowerCase() || "";
   if (p.includes("republican")) {
-    return { bg: "bg-red-500/10", text: "text-red-600", border: "border-red-500/30" };
+    return { bg: "bg-red-300", text: "text-red-600", border: "border-red-500/30" };
   }
   if (p.includes("democrat")) {
-    return { bg: "bg-blue-500/10", text: "text-blue-600", border: "border-blue-500/30" };
+    return { bg: "bg-blue-300", text: "text-blue-600", border: "border-blue-500/30" };
   }
   return { bg: "bg-gray-500/10", text: "text-gray-600", border: "border-gray-500/30" };
 }
