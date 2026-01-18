@@ -34,6 +34,7 @@ export interface AnalysisResult {
     overall: number;
     sources: {
       "ml-model": { recommendation: "buy" | "sell" | "hold"; score: number };
+      "math-formula": { recommendation: "buy" | "sell" | "hold"; score: number };
       "news-outlets": { recommendation: "buy" | "sell" | "hold"; score: number };
       congress: { recommendation: "buy" | "sell" | "hold"; score: number };
       "social-media": { recommendation: "buy" | "sell" | "hold"; score: number };

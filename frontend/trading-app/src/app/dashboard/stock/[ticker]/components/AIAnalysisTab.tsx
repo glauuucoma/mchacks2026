@@ -28,10 +28,11 @@ import {
   Newspaper,
   MessageSquare,
   Landmark,
+  Calculator,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { SourceWeights } from "@/store/preferences";
-import type { AnalysisState } from "../data";
+import type { AnalysisState, AnalysisResult } from "../data";
 
 // =============================================================================
 // TYPES
@@ -60,6 +61,11 @@ const SOURCE_INFO: Record<
     label: "Machine Learning Model",
     icon: <Brain className="size-5" />,
     description: "AI prediction based on historical patterns and technical indicators",
+  },
+  "math-formula": {
+    label: "Math Formulas",
+    icon: <Calculator className="size-5" />,
+    description: "Mathematical prediction based on quantitative analysis",
   },
   "news-outlets": {
     label: "News Outlets",
@@ -191,7 +197,7 @@ function BarometerCard({ overallScore }: { overallScore: number }) {
       </div>
 
       {/* Gauge */}
-      <div className="p-8">
+      <div className="p-8 py-16">
         <div className="relative mx-auto" style={{ width: 320, height: 180 }}>
           <svg viewBox="0 0 320 180" className="w-full h-full overflow-visible">
             <defs>
@@ -260,7 +266,7 @@ function BarometerCard({ overallScore }: { overallScore: number }) {
           {/* Center Value */}
           <div className="absolute bottom-[-80px] left-1/2 -translate-x-1/2 text-center">
             <p
-              className="text-3xl font-bold"
+              className="text-2xl font-bold"
               style={{ color: recommendation.color }}
             >
               {recommendation.label}
@@ -345,7 +351,7 @@ function SourceCard({
 function SourceBreakdown({ 
   sources 
 }: { 
-  sources: AnalysisState["result"]["sources"];
+  sources: AnalysisResult["sources"];
 }) {
   return (
     <motion.div
