@@ -8,3 +8,6 @@ __pycache__/
 
 # Ignore environment variables 
 .env
+
+# Ignore data for stocks
+stocks_data/
