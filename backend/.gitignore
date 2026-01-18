@@ -6,6 +6,9 @@ __pycache__/
 *.pyd
 .ipynb_checkpoints/
 
+# Data files
+stocks_data/
+
 # ML artifacts
 *.pt
 *.pth

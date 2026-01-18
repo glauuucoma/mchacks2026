@@ -76,6 +76,7 @@ import {
 } from "@/components/dashboard/utils";
 import usePreferencesStore from "@/store/preferences";
 import { congressService } from "@/lib/api/congress";
+import axios from "axios";
 
 // Local imports
 import {
@@ -135,6 +136,43 @@ export default function StockDetailPage() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [recommendation, setRecommendation] = useState<string | null>(null);
   const [isLoadingRecommendation, setIsLoadingRecommendation] = useState(false);
+  const [recommendationWord, setRecommendationWord] = useState<string | null>(null);
+
+  // Function to get buy/sell/hold from API
+  const fetchRecommendationWord = async () => {
+    try {
+      const res = await axios.post("http://localhost:8000/api/start_scan", {
+        ticker,
+      });
+      const scanId = res.data.scan_id;
+
+      // Poll for completion
+      let status = "processing";
+      let result = null;
+      while (status !== "complete") {
+        await new Promise((r) => setTimeout(r, 4000));
+        const checkRes = await axios.get(
+          `http://localhost:8000/api/check_status/${scanId}`
+        );
+        status = checkRes.data.status;
+        if (status === "complete") {
+          result = checkRes.data;
+        }
+      }
+      // Extract the word (buy/sell/hold) from the result
+      // You may need to adjust this depending on your API's response structure
+      // For example, let's assume it's in result.analysis.trader_signal
+      const signal = result?.analysis?.trader_signal?.toLowerCase() || "";
+      let word: "buy" | "sell" | "hold" | null = null;
+      if (signal.includes("buy")) word = "buy";
+      else if (signal.includes("sell")) word = "sell";
+      else if (signal.includes("hold")) word = "hold";
+      setRecommendationWord(word);
+    } catch (err) {
+      setRecommendationWord("error");
+      console.error("API error:", err);
+    }
+  };
 
   // ---------------------------------------------------------------------------
   // CONGRESS DATA STATE
@@ -197,6 +235,15 @@ export default function StockDetailPage() {
       }
     }
   };
+
+        <button onClick={fetchRecommendationWord} className="my-4 px-4 py-2 bg-blue-500 text-white rounded">
+        Get Buy/Sell/Hold
+      </button>
+      {recommendationWord && (
+        <div className="mt-2 text-lg font-bold">
+          Recommendation: {recommendationWord.toUpperCase()}
+        </div>
+      )}
 
   /** Analyze Congress data to determine buy/sell/hold rating */
   const analyzeCongressData = useCallback((trades: CongressPerson[]): number => {
@@ -472,6 +519,21 @@ export default function StockDetailPage() {
             </Button>
           </div>
         </div>
+      </div>
+
+          {/* Add this button and result display wherever you want in your layout */}
+      <div className="my-4">
+        <button
+          onClick={fetchRecommendationWord}
+          className="px-4 py-2 bg-blue-500 text-white rounded"
+        >
+          Get Buy/Sell/Hold
+        </button>
+        {recommendationWord && (
+          <div className="mt-2 text-lg font-bold">
+            Recommendation: {recommendationWord.toUpperCase()}
+          </div>
+        )}
       </div>
 
       {/* ===================================================================
