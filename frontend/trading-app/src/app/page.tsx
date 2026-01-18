@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { TrendingUp, BarChart3, Activity, ArrowRight } from "lucide-react";
+import { TrendingUp, BarChart3, Landmark, ArrowRight } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useUser } from "@auth0/nextjs-auth0/client";
@@ -192,17 +192,17 @@ export default function Home() {
             onMouseEnter={handleUserHover}
             onMouseLeave={handleUserLeave}
           >
-            <Activity className={`size-8 text-[#333] mb-4 transition-transform duration-300 ${
+            <Landmark className={`size-8 text-[#333] mb-4 transition-transform duration-300 ${
               autoHoverIndex === 2 ? "scale-110 rotate-3" : "group-hover:scale-110 group-hover:rotate-3"
             }`} />
             <h3 className="text-xl font-medium text-[#333] mb-2 transition-colors duration-300">
-              Automated Trading
+              Insider Knowledge
             </h3>
             <p className={`text-sm leading-relaxed transition-colors duration-300 ${
               autoHoverIndex === 2 ? "text-[#333]/70" : "text-[#333]/60 group-hover:text-[#333]/70"
             }`}>
-              Set up automated strategies that execute trades based on your
-              predefined criteria and risk tolerance.
+              Track congressional trading activity with public STOCK Act filings.
+              See what members of Congress are buying and selling.
             </p>
           </div>
         </div>

@@ -6,6 +6,8 @@ import { ArrowRight } from "lucide-react";
 import dynamic from "next/dynamic";
 import { SECTORS } from "./data";
 import usePreferencesStore, { type SourceWeights } from "@/store/preferences";
+import useStocksStore from "@/store/stocks";
+import { getStocksForSectors, mergeStocksWithExisting } from "@/lib/industry-stocks";
 
 // Lazy load chart to prevent blocking
 const BackgroundChart = dynamic(
@@ -144,6 +146,9 @@ export default function SelectPage() {
     setSourceWeight,
   } = usePreferencesStore();
 
+  // Get stocks store to add industry-related stocks
+  const { tickers, setTickers } = useStocksStore();
+
   const handleSectorChange = useCallback((value: string) => {
     toggleSector(value);
   }, [toggleSector]);
@@ -166,11 +171,16 @@ export default function SelectPage() {
       setStep(2);
     } else {
       if (isTotalValid) {
+        // Add stocks from selected industries
+        const industryStocks = getStocksForSectors(selectedSectors);
+        const mergedStocks = mergeStocksWithExisting(tickers, industryStocks);
+        setTickers(mergedStocks);
+        
         // Data is automatically saved to localStorage via zustand persist
         router.push("/dashboard");
       }
     }
-  }, [step, isTotalValid, router]);
+  }, [step, isTotalValid, router, selectedSectors, tickers, setTickers]);
 
   return (
     <div className="relative min-h-screen bg-white overflow-hidden">

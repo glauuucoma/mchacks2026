@@ -30,7 +30,7 @@ interface StockContext {
 }
 
 interface AskAIChatProps {
-  stockContext: StockContext;
+  stockContext?: StockContext;
 }
 
 export default function AskAIChat({ stockContext }: AskAIChatProps) {
@@ -79,7 +79,7 @@ export default function AskAIChat({ stockContext }: AskAIChatProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: input.trim(),
-          stockContext,
+          stockContext: stockContext || null,
         }),
       });
 
@@ -93,7 +93,7 @@ export default function AskAIChat({ stockContext }: AskAIChatProps) {
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
-    } catch (error) {
+    } catch {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
@@ -113,87 +113,99 @@ export default function AskAIChat({ stockContext }: AskAIChatProps) {
     }
   };
 
+  const suggestions = stockContext
+    ? ["What is P/E?", "What are the risks of investing in the following stock?", "How do I analyze stocks?"]
+    : ["What stocks should I look at?", "Market trends today?", "How do I analyze stocks?"];
+
   return (
     <>
-      {/* Trigger Button */}
-      <button
+      {/* Floating Side Button */}
+      <motion.button
         onClick={() => setIsOpen(true)}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary bg-primary/10 hover:bg-primary/20 rounded-full transition-colors cursor-pointer"
+        className="fixed right-0 top-1/2 -translate-y-1/2 z-40 flex items-center gap-2 px-3 py-4 bg-primary text-primary-foreground rounded-l-2xl shadow-lg hover:shadow-xl hover:pr-5 transition-all duration-300 cursor-pointer group"
+        whileHover={{ x: -4 }}
+        whileTap={{ scale: 0.98 }}
+        initial={{ x: 0 }}
+        animate={{ x: isOpen ? 100 : 0 }}
       >
-        <MessageCircle className="size-3.5" />
-        Ask AI
-      </button>
+        <Sparkles className="size-5" />
+        <span className="text-sm font-semibold writing-mode-vertical">Ask AI</span>
+      </motion.button>
 
-      {/* Chat Popover */}
+      {/* Chat Panel */}
       <AnimatePresence>
         {isOpen && (
-          <>
-            {/* Backdrop for mobile */}
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsOpen(false)}
-              className="fixed inset-0 bg-black/20 z-40 md:hidden"
-            />
-
-            {/* Chat Box */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.95 }}
               transition={{ type: "spring", damping: 25, stiffness: 400 }}
-              className="fixed bottom-4 right-4 md:absolute md:bottom-auto md:right-0 md:top-full md:mt-2 w-[calc(100vw-2rem)] md:w-96 bg-card border border-border rounded-2xl shadow-2xl z-50 overflow-hidden"
+              className="fixed bottom-6 right-6 w-[360px] h-[500px] max-w-[calc(100vw-3rem)] max-h-[calc(100vh-6rem)] bg-card border border-border rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col"
             >
               {/* Header */}
-              <div className="flex items-center justify-between p-4 border-b border-border bg-gradient-to-r from-primary/5 to-transparent">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-primary/10 via-primary/5 to-transparent shrink-0">
                 <div className="flex items-center gap-2">
-                  <div className="size-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
                     <Sparkles className="size-4 text-primary" />
                   </div>
                   <div>
                     <h4 className="text-sm font-semibold text-foreground">
-                      Ask about {stockContext.ticker}
+                      {stockContext ? `Ask about ${stockContext.ticker}` : "Ask AI"}
                     </h4>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-[10px] text-muted-foreground">
                       Powered by Gemini AI
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="p-1.5 rounded-lg hover:bg-muted transition-colors"
+                  className="p-1.5 rounded-lg hover:bg-muted transition-colors cursor-pointer"
                 >
                   <X className="size-4" />
                 </button>
               </div>
 
-              {/* Messages */}
-              <div ref={messagesContainerRef} className="h-72 overflow-y-auto p-4 space-y-4">
-                {messages.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center">
-                    <div className="size-12 rounded-full bg-muted flex items-center justify-center mb-3">
-                      <MessageCircle className="size-6 text-muted-foreground" />
+              {/* Stock Context Badge (if available) */}
+              {stockContext && (
+                <div className="px-3 py-2 border-b border-border bg-muted/30 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <div className="size-6 rounded bg-primary/10 flex items-center justify-center">
+                      <span className="text-[10px] font-bold text-primary">{stockContext.ticker.slice(0, 2)}</span>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      Ask me anything about
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-foreground truncate">{stockContext.name}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        ${stockContext.price.toFixed(2)} • {stockContext.industry}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Messages */}
+              <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-3 space-y-3">
+                {messages.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center px-3">
+                    <div className="size-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mb-3">
+                      <MessageCircle className="size-6 text-primary" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-foreground mb-1">
+                      How can I help?
+                    </h3>
+                    <p className="text-xs text-muted-foreground mb-4">
+                      {stockContext 
+                        ? `Ask me anything about ${stockContext.name}`
+                        : "Ask about stocks, trends, or strategies"}
                     </p>
-                    <p className="text-sm font-semibold text-foreground">
-                      {stockContext.name}
-                    </p>
-                    <div className="mt-4 flex flex-wrap gap-2 justify-center">
-                      {[
-                        "Should I buy?",
-                        "What are the risks?",
-                        "Price prediction?",
-                      ].map((suggestion) => (
+                    <div className="flex flex-wrap gap-1.5 justify-center">
+                      {suggestions.map((suggestion) => (
                         <button
                           key={suggestion}
                           onClick={() => {
                             setInput(suggestion);
                             inputRef.current?.focus();
                           }}
-                          className="text-xs px-3 py-1.5 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
+                          className="text-[11px] px-3 py-1.5 rounded-full bg-muted hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors cursor-pointer border border-transparent hover:border-primary/20"
                         >
                           {suggestion}
                         </button>
@@ -211,23 +223,23 @@ export default function AskAIChat({ stockContext }: AskAIChatProps) {
                       }`}
                     >
                       <div
-                        className={`shrink-0 size-7 rounded-full flex items-center justify-center ${
+                        className={`shrink-0 size-6 rounded-lg flex items-center justify-center ${
                           message.role === "user"
                             ? "bg-primary text-primary-foreground"
                             : "bg-muted"
                         }`}
                       >
                         {message.role === "user" ? (
-                          <User className="size-4" />
+                          <User className="size-3" />
                         ) : (
-                          <Bot className="size-4" />
+                          <Bot className="size-3" />
                         )}
                       </div>
                       <div
-                        className={`max-w-[80%] p-3 rounded-2xl text-sm ${
+                        className={`max-w-[85%] px-3 py-2 rounded-xl text-xs leading-relaxed ${
                           message.role === "user"
-                            ? "bg-primary text-primary-foreground rounded-br-md"
-                            : "bg-muted rounded-bl-md"
+                            ? "bg-primary text-primary-foreground rounded-br-sm"
+                            : "bg-muted rounded-bl-sm"
                         }`}
                       >
                         {message.content}
@@ -243,15 +255,15 @@ export default function AskAIChat({ stockContext }: AskAIChatProps) {
                     animate={{ opacity: 1, y: 0 }}
                     className="flex gap-2"
                   >
-                    <div className="shrink-0 size-7 rounded-full bg-muted flex items-center justify-center">
-                      <Bot className="size-4" />
+                    <div className="shrink-0 size-6 rounded-lg bg-muted flex items-center justify-center">
+                      <Bot className="size-3" />
                     </div>
-                    <div className="bg-muted p-3 rounded-2xl rounded-bl-md">
+                    <div className="bg-muted px-3 py-2 rounded-xl rounded-bl-sm">
                       <div className="flex gap-1">
                         {[0, 1, 2].map((i) => (
                           <motion.div
                             key={i}
-                            className="size-2 rounded-full bg-muted-foreground/50"
+                            className="size-1.5 rounded-full bg-muted-foreground/50"
                             animate={{ opacity: [0.3, 1, 0.3] }}
                             transition={{
                               duration: 1,
@@ -269,7 +281,7 @@ export default function AskAIChat({ stockContext }: AskAIChatProps) {
               </div>
 
               {/* Input */}
-              <div className="p-4 border-t border-border bg-muted/30">
+              <div className="p-3 border-t border-border bg-muted/30 shrink-0">
                 <div className="flex items-center gap-2">
                   <input
                     ref={inputRef}
@@ -278,30 +290,34 @@ export default function AskAIChat({ stockContext }: AskAIChatProps) {
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Type your question..."
-                    className="flex-1 px-4 py-2.5 bg-background border border-border rounded-xl text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all"
+                    className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                     disabled={isLoading}
                   />
                   <Button
                     onClick={sendMessage}
                     disabled={!input.trim() || isLoading}
                     size="icon"
-                    className="shrink-0 size-10 rounded-xl"
+                    className="shrink-0 size-8 rounded-lg"
                   >
                     {isLoading ? (
-                      <Loader2 className="size-4 animate-spin" />
+                      <Loader2 className="size-3.5 animate-spin" />
                     ) : (
-                      <Send className="size-4" />
+                      <Send className="size-3.5" />
                     )}
                   </Button>
                 </div>
-                <p className="text-[10px] text-muted-foreground text-center mt-2">
-                  AI responses are for informational purposes only
-                </p>
               </div>
             </motion.div>
-          </>
         )}
       </AnimatePresence>
+
+      {/* CSS for vertical text */}
+      <style jsx>{`
+        .writing-mode-vertical {
+          writing-mode: vertical-rl;
+          text-orientation: mixed;
+        }
+      `}</style>
     </>
   );
 }
