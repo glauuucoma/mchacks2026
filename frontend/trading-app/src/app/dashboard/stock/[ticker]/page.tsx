@@ -244,7 +244,7 @@ export default function StockDetailPage() {
   const fetchRecommendation = useCallback(async () => {
     setIsLoadingRecommendation(true);
     try {
-      const response = await fetch(`http://127.0.0.1:8000/recommendation?symbol=CNQ`, {
+      const response = await fetch(`http://127.0.0.1:8000/math_recommendation?symbol=OXY`, {  //http://127.0.0.1:8000/GRURegressor?symbol=OXY
         method: "GET",
         headers: {
           "Content-Type": "application/json",
