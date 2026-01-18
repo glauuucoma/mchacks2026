@@ -1,13 +1,23 @@
-# Ignore the virtual environment
 venv/
 .venv/
-
-# Ignore compiled python files
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.ipynb_checkpoints/
 
-# Ignore environment variables 
+# ML artifacts
+*.pt
+*.pth
+*.onnx
+*.joblib
+*.pkl
+
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-lock.yaml
+
 .env
-
-# Ignore data for stocks
-stocks_data/
+.env.*
+*.env
