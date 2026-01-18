@@ -1,6 +1,8 @@
 import os
 import argparse
+import subprocess
 import pandas as pd
+import sys
 
 # ---------- CONFIGURABLE THRESHOLDS ----------
 RET_1D_BUY = 0.01       # 1% gain in 1 day → bullish
@@ -22,7 +24,19 @@ def simple_decision(row):
     else:
         return "HOLD"
 
-# ---------- MAIN ----------
+def ensure_features(symbol):
+    stock_dir = os.path.join(os.path.dirname(__file__), "stocks_data", symbol.upper())
+    features_file = os.path.join(stock_dir, f"{symbol.upper()}_features_reg.csv")
+    if not os.path.exists(features_file):
+        print(f"[INFO] Features file not found. Running features.py and fetch_data.py for {symbol}...")
+        # Run features.py
+        features_py = os.path.join(os.path.dirname(__file__), "features.py")
+        subprocess.run([sys.executable, features_py, symbol], check=True)
+        # Run fetch_data.py
+        fetch_data_py = os.path.join(os.path.dirname(__file__), "fetch_data.py")
+        subprocess.run([sys.executable, fetch_data_py, symbol], check=True)
+    return features_file
+
 def predict_last_date(symbol):
     stock_dir = os.path.join(os.path.dirname(__file__), "stocks_data", symbol.upper())
     features_file = os.path.join(stock_dir, f"{symbol.upper()}_features_reg.csv")
