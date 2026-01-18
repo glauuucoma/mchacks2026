@@ -1,46 +1,77 @@
-import argparse, pandas as pd, numpy as np, warnings
-warnings.filterwarnings('ignore')  # Suppress warnings
+# build_features_regression_final.py
+import argparse
+import pandas as pd
+import numpy as np
+import warnings
 
-def compute_rsi(prices, window=14):
-    delta = prices.diff()
-    gain = delta.where(delta > 0, 0).rolling(window=window).mean()
-    loss = -delta.where(delta < 0, 0).rolling(window=window).mean()
+warnings.filterwarnings("ignore")
+
+def rsi(series, window=14):
+    delta = series.diff()
+    gain = delta.clip(lower=0).rolling(window).mean()
+    loss = -delta.clip(upper=0).rolling(window).mean()
     rs = gain / loss
-    rsi = 100 - (100 / (1 + rs))
-    return rsi
+    return 100 - (100 / (1 + rs))
 
-def main(symbol):
-    csv_file = f'{symbol.lower()}_data.csv'
-    df = pd.read_csv(f'{symbol.lower()}_data.csv', index_col=0, parse_dates=True)
-    
-    # Force numeric (handles strings/None)
-    for col in ['Open', 'High', 'Low', 'Close', 'Volume']:
-        df[col] = pd.to_numeric(df[col], errors='coerce')
-    
-    df.dropna(subset=['Close'], inplace=True)  # Drop bad rows
-    
-    # Features (safe pct_change)
-    df['Returns'] = df['Close'].pct_change(fill_method=None)
-    df['SMA_20'] = df['Close'].rolling(20).mean()
-    df['SMA_50'] = df['Close'].rolling(50).mean()
-    df['RSI'] = compute_rsi(df['Close'])
-    df['BB_upper'] = df['SMA_20'] + (df['Close'].rolling(20).std() * 2)
-    df['BB_lower'] = df['SMA_20'] - (df['Close'].rolling(20).std() * 2)
-    
-    # Signals/Target
-    df['Signal'] = np.where(df['RSI'] < 30, 'BUY', np.where(df['RSI'] > 70, 'SELL', 'HOLD'))
-    df['Target'] = np.where(df['Close'].shift(-1) > df['Close'], 1, 0)
-    
-    df.dropna(inplace=True)
-    df.to_csv(f'{symbol.lower()}_features.csv')
-    print(df[['Close', 'RSI', 'Signal']].tail())
-    print("\nSignal counts:", df['Signal'].value_counts())
+def main(symbol, output_dir):
+    df = pd.read_csv(
+        f"{output_dir}/{symbol}_data.csv",
+        parse_dates=["Date"],
+        index_col="Date"
+    )
+
+    df = df.astype(float)
+
+    # -------- RETURNS --------
+    df["ret_1d"] = df["Close"].pct_change()
+    df["ret_5d"] = df["Close"].pct_change(5)
+
+    # -------- TREND --------
+    df["sma_10"] = df["Close"].rolling(10).mean()
+    df["sma_20"] = df["Close"].rolling(20).mean()
+    df["sma_50"] = df["Close"].rolling(50).mean()
+    df["trend_50"] = df["Close"] / df["sma_50"]
+
+    # -------- MOMENTUM --------
+    df["RSI"] = rsi(df["Close"])
+
+    # MACD
+    ema12 = df["Close"].ewm(span=12).mean()
+    ema26 = df["Close"].ewm(span=26).mean()
+    df["MACD"] = ema12 - ema26
+
+    # -------- VOLATILITY (ATR) --------
+    tr = pd.concat([
+        df["High"] - df["Low"],
+        (df["High"] - df["Close"].shift()).abs(),
+        (df["Low"] - df["Close"].shift()).abs()
+    ], axis=1).max(axis=1)
+
+    df["ATR"] = tr.rolling(14).mean()
+    df["ATR_pct"] = df["ATR"] / df["Close"]
+
+    # -------- VOLUME --------
+    df["vol_chg"] = df["Volume"].pct_change()
+    df["vol_norm"] = df["Volume"] / df["Volume"].rolling(20).mean()
+
+    # -------- TARGET (REGRESSION) --------
+    # Log return for next 5 days
+    df["target"] = np.log(df["Close"].shift(-5) / df["Close"])
+
+    # -------- DROP ROWS ONLY IF FEATURES ARE NaN --------
+    feature_cols = [
+        "ret_1d", "ret_5d", "sma_10", "sma_20", "sma_50", "trend_50",
+        "RSI", "MACD", "ATR", "ATR_pct", "vol_chg", "vol_norm"
+    ]
+    df.dropna(subset=feature_cols, inplace=True)
+
+    # Now the last 5 rows are kept (target NaN) for testing/demo
+    df.to_csv(f"{output_dir}/{symbol}_features_reg.csv")
+    print(f"✅ Regression features saved: {output_dir}/{symbol}_features_reg.csv")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("symbol", nargs="?")
+    parser.add_argument("symbol")
+    parser.add_argument("output_dir", nargs="?", default=".")
     args = parser.parse_args()
-    if not args.symbol:
-        print("Usage: python features.py GOOG")
-    else:
-        main(args.symbol)
+    main(args.symbol, args.output_dir)
