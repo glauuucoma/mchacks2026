@@ -13,7 +13,6 @@ export const INDUSTRY_STOCKS: Record<string, string[]> = {
     "IBM",    // IBM
     "DUOL",   // Duolingo
     "META",   // Meta
-    "SHOP",   // Shopify (Canadian)
     "BB",     // BlackBerry (Canadian)
     "OTEX",   // Open Text (Canadian)
   ],
@@ -22,11 +21,9 @@ export const INDUSTRY_STOCKS: Record<string, string[]> = {
   finance: [
     "BMO",    // Bank of Montreal (Canadian)
     "TD",     // Toronto-Dominion (Canadian)
-    "RY",     // Royal Bank of Canada (Canadian)
     "BNS",    // Bank of Nova Scotia (Canadian)
     "CM",     // CIBC (Canadian)
     "MFC",    // Manulife (Canadian)
-    "SLF",    // Sun Life (Canadian)
     "GS",     // Goldman Sachs
     "V",      // Visa
     "MA",     // Mastercard
@@ -41,8 +38,6 @@ export const INDUSTRY_STOCKS: Record<string, string[]> = {
     "TRP",    // TC Energy (Canadian)
     "IMO",    // Imperial Oil (Canadian)
     "CVX",    // Chevron
-    "XOM",    // Exxon Mobil
-    "SHEL",   // Shell
     "COP",    // ConocoPhillips
     "BP",     // BP
   ],
@@ -59,9 +54,7 @@ export const INDUSTRY_STOCKS: Record<string, string[]> = {
 
   // Consumer Goods sector
   consumer: [
-    "ATD",    // Alimentation Couche-Tard (Canadian)
     "L",      // Loblaw (Canadian)
-    "MRU",    // Metro Inc (Canadian)
     "DOL",    // Dollarama (Canadian)
     "COST",   // Costco
     "WMT",    // Walmart
@@ -73,7 +66,6 @@ export const INDUSTRY_STOCKS: Record<string, string[]> = {
   industrial: [
     "CNI",    // CN Rail (Canadian)
     "CP",     // Canadian Pacific (Canadian)
-    "WCN",    // Waste Connections (Canadian)
     "TIH",    // Toromont (Canadian)
     "CAT",    // Caterpillar
     "DE",     // Deere
@@ -84,7 +76,6 @@ export const INDUSTRY_STOCKS: Record<string, string[]> = {
   // Telecommunications sector
   telecommunications: [
     "BCE",    // Bell Canada (Canadian)
-    "RCI",    // Rogers Communications (Canadian)
     "T",      // Telus (Canadian) / AT&T
     "VZ",     // Verizon
     "TMUS",   // T-Mobile
@@ -114,8 +105,6 @@ export const INDUSTRY_STOCKS: Record<string, string[]> = {
   materials: [
     "NTR",    // Nutrien (Canadian)
     "CCL",    // CCL Industries (Canadian)
-    "FM",     // First Quantum (Canadian)
-    "WFG",    // West Fraser Timber (Canadian)
     "LIN",    // Linde
     "NEM",    // Newmont
     "FCX",    // Freeport-McMoRan
