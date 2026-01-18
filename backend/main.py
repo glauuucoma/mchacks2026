@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware  # Added for frontend connection
 from models.prediction import ScanRequest, GumloopResult
 from services.gumloop import trigger_gumloop_flow
 import uuid
@@ -7,31 +8,48 @@ import yfinance as yf
 import google.generativeai as genai
 import json
 import os
+import requests
+import datetime
+from langdetect import detect
 from dotenv import load_dotenv
 
 # ======================================================
-# 1. SETUP
+# 1. SETUP & CONFIGURATION
 # ======================================================
 load_dotenv()
+NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+AI_INVEST_TOKEN = os.getenv("AI_INVEST_TOKEN")
+EMAIL = os.getenv("EMAIL")
 
 if not GEMINI_API_KEY:
     raise ValueError("❌ CRITICAL ERROR: GEMINI_API_KEY is missing")
 
 genai.configure(api_key=GEMINI_API_KEY)
 
+# Robust Model Loading
 try:
-    print("🧠 Attempting to load Gemini 2.5 Flash...")
-    model = genai.GenerativeModel("gemini-2.5-flash")
-except:
-    try:
-        print("⚠️ 2.5 Failed. Trying Gemini 2.0 Flash...")
-        model = genai.GenerativeModel("gemini-2.0-flash")
-    except:
-        print("⚠️ Falling back to Gemini 1.5 Flash...")
-        model = genai.GenerativeModel("gemini-1.5-flash")
+    print("🧠 Attempting to load Gemini 1.5 Flash...")
+    model = genai.GenerativeModel("gemini-1.5-flash")
+except Exception:
+    print("⚠️ Falling back to Gemini 1.0 Pro...")
+    model = genai.GenerativeModel("gemini-pro")
 
 app = FastAPI()
+
+origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 MEMORY_DB = {}
 
 # ======================================================
@@ -52,58 +70,38 @@ def get_gemini_technical_analysis(ticker: str):
 
     except Exception as e:
         print(f"   ⚠️ Yahoo error ({e}). Using backup data.")
-        df_str = """
-        Date        Open    High    Low     Close   Volume
-        (BACKUP)    120.5   125.0   119.0   124.5   50000000
-        ...         ...     ...     ...     ...     ...
-        (Today)     135.0   138.5   134.0   137.2   65000000
-        """
+        df_str = "Date: 2024-01-01, Open: 150, Close: 155, Volume: 1000000"
 
     try:
         prompt = f"""
         Act as a professional technical analyst.
-
-        Data:
-        {df_str}
-
-        CRITICAL:
-        Return ONLY raw JSON with:
-        - tech_score (0–50)
-        - pattern_name
+        Data: {df_str}
+        CRITICAL: Return ONLY raw JSON with:
+        - tech_score (number 0–50)
+        - pattern_name (string)
         """
-
         response = model.generate_content(prompt)
         clean_json = response.text.replace("```json", "").replace("```", "").strip()
         return json.loads(clean_json)
-
     except Exception as e:
         print(f"❌ Gemini parsing error: {e}")
         return {"tech_score": 25, "pattern_name": "Analysis Unavailable"}
 
 # ======================================================
-# 3. SCORING
+# 3. SCORING LOGIC
 # ======================================================
 def calculate_final_score(tech_data: dict, sentiment):
     score = tech_data.get("tech_score", 25)
-
     reddit = sentiment.reddit_sentiment.lower()
     trader = sentiment.trader_signal.lower()
 
-    # --- Reddit Logic ---
-    if "bullish" in reddit:
-        score += 15
-    elif "bearish" in reddit:
-        score -= 15
-    else:
-        score += 5  # Give 5 points for Neutral (not bearish is good!)
+    if "bullish" in reddit: score += 15
+    elif "bearish" in reddit: score -= 15
+    else: score += 5 
 
-    # --- Trader Logic ---
-    if "buy" in trader:
-        score += 10
-    elif "sell" in trader:
-        score -= 10
-    elif "holding" in trader:
-        score += 5  # Give 5 points for Holding
+    if "buy" in trader: score += 10
+    elif "sell" in trader: score -= 10
+    elif "holding" in trader: score += 5
 
     return max(0, min(100, score))
 
@@ -113,7 +111,6 @@ def calculate_final_score(tech_data: dict, sentiment):
 @app.post("/api/start_scan")
 def start_scan(request: ScanRequest):
     scan_id = str(uuid.uuid4())
-
     tech_data = get_gemini_technical_analysis(request.ticker)
 
     MEMORY_DB[scan_id] = {
@@ -124,29 +121,19 @@ def start_scan(request: ScanRequest):
     }
 
     trigger_gumloop_flow(scan_id, request.ticker)
-
-    return {
-        "scan_id": scan_id,
-        "message": "Charts analyzed. Waiting for social data..."
-    }
+    return {"scan_id": scan_id, "message": "Analysis started..."}
 
 @app.post("/api/webhook/gumloop_result")
 def receive_result(result: GumloopResult):
-    print(f"📩 Gumloop Result Received for {result.ticker}")
-    print("📦 Payload:", result.dict())
-
-    # NEW: Handle scans not in memory (for manual testing)
     if result.scan_id not in MEMORY_DB:
-        print(f"⚠️ Scan ID {result.scan_id} not found. Creating placeholder entry.")
         MEMORY_DB[result.scan_id] = {
             "status": "gumloop_only",
             "ticker": result.ticker,
-            "tech_data": {"tech_score": 25, "pattern_name": "Not Analyzed (Manual Test)"},
+            "tech_data": {"tech_score": 25, "pattern_name": "Manual Test"},
             "final_score": None
         }
 
     tech_data = MEMORY_DB[result.scan_id]["tech_data"]
-    print(f"📊 TECH SCORE Breakdown: {tech_data}")
     final_score = calculate_final_score(tech_data, result)
 
     MEMORY_DB[result.scan_id].update({
@@ -160,19 +147,84 @@ def receive_result(result: GumloopResult):
             "trader_signal": result.trader_signal
         }
     })
-
-    print(f"✅ SCAN COMPLETE: {final_score}/100")
     return {"status": "success"}
 
 @app.get("/api/check_status/{scan_id}")
 def check_status(scan_id: str):
     if scan_id not in MEMORY_DB:
         raise HTTPException(status_code=404, detail="Scan ID not found")
-
     return MEMORY_DB[scan_id]
 
 # ======================================================
-# 5. RUN
+# 5. DASHBOARDS
+# ======================================================
+
+@app.post("/api/get_news_headlines")
+def get_news_headlines(data: dict):
+    ticker = data['ticker']
+    day_offset = data.get('day_offset', 3)
+    from_date = (datetime.datetime.now() - datetime.timedelta(days=day_offset)).strftime('%Y-%m-%d')
+
+    url = f"https://newsapi.org/v2/everything?q={ticker}&from={from_date}&sortBy=popularity&apiKey={NEWS_API_KEY}"
+    response = requests.get(url)
+    articles = response.json().get('articles', [])
+    
+    # Simple lang filter
+    en_articles = [a for a in articles if detect(a['title']) == 'en'][:10]
+    return {"articles": en_articles}
+
+@app.post("/api/get_congress_activity")
+def get_congress_activity(data: dict):
+    ticker = data['ticker']
+    page = data.get('page', 1)
+    size = data.get('size', 10)
+
+    # Get congress stock sales
+    url = f"https://openapi.ainvest.com/open/ownership/congress?ticker={ticker}&page={page}&size={size}"
+    headers = {"Authorization": f"Bearer {AI_INVEST_TOKEN}"}
+    response = requests.get(url, headers=headers)
+
+    congress_data = response.json()['data']['data']
+
+    # Add photos
+    for congress_datum in congress_data:
+        person_name = congress_datum['name']
+        photo_url = get_wikipedia_image(person_name)
+        congress_datum['photo_url'] = photo_url
+    
+    return {
+        "congress_data": congress_data,
+        'message': "success"
+    }
+
+def get_wikipedia_image(person_name):
+    search_url = "https://en.wikipedia.org/w/api.php"
+    
+    # Wikipedia requires a User-Agent header
+    headers = {
+        "User-Agent": f"MyApp/1.0 ({EMAIL})"  # Use your actual email
+    }
+    
+    search_params = {
+        "action": "query",
+        "format": "json",
+        "titles": person_name,
+        "prop": "pageimages",
+        "piprop": "original"
+    }
+    
+    response = requests.get(search_url, params=search_params, headers=headers)
+    data = response.json()
+    pages = data['query']['pages']
+    
+    for page_id, page_data in pages.items():
+        if 'original' in page_data:
+            return page_data['original']['source']
+    
+    return None
+
+# ======================================================
+# 6. RUN
 # ======================================================
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
