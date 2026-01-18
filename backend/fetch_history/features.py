@@ -67,7 +67,7 @@ def main(symbol, output_dir):
 
     # Now the last 5 rows are kept (target NaN) for testing/demo
     df.to_csv(f"{output_dir}/{symbol}_features_reg.csv")
-    print(f"✅ Regression features saved: {output_dir}/{symbol}_features_reg.csv")
+    print(f"[OK] Regression features saved: {output_dir}/{symbol}_features_reg.csv")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

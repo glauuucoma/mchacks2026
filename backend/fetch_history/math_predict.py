@@ -29,7 +29,7 @@ def predict_last_date(symbol):
     print(f"[DEBUG] Checking for features file at: {os.path.abspath(features_file)} (symbol={symbol})")
 
     if not os.path.exists(features_file):
-        print(f"❌ Features file not found: {features_file}")
+        print(f"[ERROR] Features file not found: {features_file}")
         return
 
     # Load CSV

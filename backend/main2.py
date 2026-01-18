@@ -52,12 +52,16 @@ def get_recommendation(symbol: str = Query(..., description="Stock symbol to pre
     Dynamically constructs the model, scaler, and features file paths.
     """
     try:
+        # Always use uppercase for symbol
+        symbol = symbol.upper()
+        stock_dir = os.path.join(STOCK_DIR, symbol)
+        
         # Construct paths based on the symbol
-        model_path = os.path.join(STOCK_DIR, symbol, f"{symbol}_reg_model.pth")
-        scaler_path = os.path.join(STOCK_DIR, symbol, f"{symbol}_scaler.save")
-        features_file = os.path.join(STOCK_DIR, symbol, f"{symbol}_features_reg.csv")
-        result = predict_today(symbol, os.path.join(STOCK_DIR, symbol))
-
+        model_path = os.path.join(stock_dir, f"{symbol}_reg_model.pth")
+        scaler_path = os.path.join(stock_dir, f"{symbol}_scaler.save")
+        features_file = os.path.join(stock_dir, f"{symbol}_features_reg.csv")
+        
+        result = predict_today(symbol, stock_dir)
         return {"recommendation": result}
 
     except Exception as e:

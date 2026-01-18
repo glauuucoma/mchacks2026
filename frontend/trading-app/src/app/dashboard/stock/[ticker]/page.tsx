@@ -19,9 +19,6 @@ import {
   Loader2,
   ExternalLink,
   Layers,
-  Share2,
-  Bell,
-  Star,
   LineChart,
   Target,
   Percent,
@@ -133,6 +130,62 @@ export default function StockDetailPage() {
     return { change, changePercent, isPositive: change >= 0 };
   }, [candleData]);
 
+  // Recommendations from backend
+  const fetchRecommendation = useCallback(async (tickerParam: string): Promise<number> => {
+    setIsLoadingRecommendation(true);
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/GRURegressor?symbol=${tickerParam}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Check for error response
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      
+      // Extract recommendation text - must be a valid string
+      if (!data.recommendation || typeof data.recommendation !== 'string') {
+        throw new Error("Invalid recommendation response from server");
+      }
+      
+      const recommendationText = data.recommendation;
+      
+      // Set the recommendation text for display
+      setRecommendation(recommendationText);
+      
+      // Convert recommendation to score: BUY = 50, SELL = -50, HOLD = 0
+      const upperText = recommendationText.toUpperCase();
+      let score: number;
+      if (upperText === "BUY") {
+        score = 50;
+      } else if (upperText === "SELL") {
+        score = -50;
+      } else if (upperText === "HOLD") {
+        score = 0;
+      } else {
+        throw new Error(`Invalid recommendation value: ${recommendationText}`);
+      }
+      
+      return score;
+    } catch (error) {
+      console.error("Error fetching recommendation:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to fetch recommendation";
+      setRecommendation(`Error: ${errorMessage}`);
+      throw error; // Re-throw to fail the website
+    } finally {
+      setIsLoadingRecommendation(false);
+    }
+  }, []);
+
   const runAnalysis = useCallback(async () => {
     setAnalysis({
       isAnalyzing: true,
@@ -160,7 +213,23 @@ export default function StockDetailPage() {
       return "hold";
     };
 
-    const mlScore = generateScore();
+    // GENERATE RESULTS
+    let mlScore: number;
+    try {
+      mlScore = await fetchRecommendation(ticker);
+    } catch (error) {
+      // Stop analysis and show error - no fallback
+      setAnalysis({
+        isAnalyzing: false,
+        currentStep: 0,
+        completedSteps: [],
+        result: null,
+      });
+      const errorMessage = error instanceof Error ? error.message : "ML model prediction failed";
+      setRecommendation(`Error: ${errorMessage}`);
+      throw error; // Re-throw to fail the website
+    }
+    
     const newsScore = generateScore();
     const congressScore = generateScore();
     const socialScore = generateScore();
@@ -191,7 +260,7 @@ export default function StockDetailPage() {
 
     // Navigate to AI Analysis tab when done
     setActiveTab("ai-analysis");
-  }, [sourceWeights]);
+  }, [sourceWeights, ticker, fetchRecommendation]);
 
   const resetAnalysis = useCallback(() => {
     setAnalysis({
@@ -200,30 +269,6 @@ export default function StockDetailPage() {
       completedSteps: [],
       result: null,
     });
-  }, []);
-
-  const fetchRecommendation = useCallback(async () => {
-    setIsLoadingRecommendation(true);
-    try {
-      const response = await fetch(`http://127.0.0.1:8000/math_recommendation?symbol=OXY`, {  //http://127.0.0.1:8000/GRURegressor?symbol=OXY
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.text();
-      setRecommendation(data);
-    } catch (error) {
-      console.error("Error fetching recommendation:", error);
-      setRecommendation("Error loading recommendation");
-    } finally {
-      setIsLoadingRecommendation(false);
-    }
   }, []);
 
   const isPositive = (stock?.quote?.dp ?? 0) >= 0;
@@ -258,58 +303,12 @@ export default function StockDetailPage() {
               <div className="absolute inset-0 bg-[#333] z-0 scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left" />
             </Button>
 
-            <div className="flex items-center gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="gap-2"
-                onClick={fetchRecommendation}
-                disabled={isLoadingRecommendation}
-              >
-                {isLoadingRecommendation ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" />
-                    <span className="hidden sm:inline">Loading...</span>
-                  </>
-                ) : (
-                  <>
-                    <Target className="size-4" />
-                    <span className="hidden sm:inline">Get Recommendation</span>
-                  </>
-                )}
-              </Button>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Bell className="size-4" />
-                <span className="hidden sm:inline">Set Alert</span>
-              </Button>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Star className="size-4" />
-                <span className="hidden sm:inline">Watchlist</span>
-              </Button>
-              <Button variant="outline" size="sm" className="gap-2" onClick={fetchRecommendation}>
-                <Share2 className="size-4" />
-                <span className="hidden sm:inline">Share</span>
-              </Button>
-            </div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Recommendation Title Display */}
-        {recommendation && (
-          <motion.div
-            initial={{ opacity: 0, y: -20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            className="mb-8 text-center"
-          >
-            <h1 className="text-7xl md:text-8xl lg:text-9xl font-bold text-foreground leading-tight">
-              {recommendation}
-            </h1>
-          </motion.div>
-        )}
-        
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
             <Loader2 className="size-10 animate-spin text-muted-foreground" />
@@ -1548,10 +1547,10 @@ function AIAnalysisTab({
                   />
 
                   {/* Labels */}
-                  <text x="20" y="175" className="fill-red-500 text-sm font-bold">
+                  <text x="20" y="225" className="fill-red-500 text-sm font-bold">
                     SELL
                   </text>
-                  <text x="270" y="175" className="fill-emerald-500 text-sm font-bold">
+                  <text x="270" y="225" className="fill-emerald-500 text-sm font-bold">
                     BUY
                   </text>
                 </svg>
@@ -1580,7 +1579,7 @@ function AIAnalysisTab({
                 </motion.div>
 
                 {/* Center Value */}
-                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-center">
+                <div className="absolute bottom-[-80px] left-1/2 -translate-x-1/2 text-center">
                   <p
                     className="text-3xl font-bold"
                     style={{ color: getOverallRecommendation(analysis.result.overall).color }}
@@ -1612,11 +1611,10 @@ function AIAnalysisTab({
               </p>
             </div>
 
-            <div className="divide-y divide-border">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6">
               {(Object.keys(SOURCE_INFO) as Array<keyof SourceWeights>).map((sourceKey, index) => {
                 const source = SOURCE_INFO[sourceKey];
                 const result = analysis.result!.sources[sourceKey];
-                const weight = sourceWeights[sourceKey];
 
                 return (
                   <motion.div
@@ -1624,7 +1622,7 @@ function AIAnalysisTab({
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.3 + index * 0.1 }}
-                    className="p-6"
+                    className="bg-card rounded-xl border border-border p-4"
                   >
                     <div className="flex items-start gap-4">
                       {/* Icon */}
@@ -1660,27 +1658,6 @@ function AIAnalysisTab({
                               {result.recommendation === "hold" && <Activity className="size-4" />}
                               {result.recommendation.toUpperCase()}
                             </span>
-                          </div>
-                        </div>
-
-                        {/* Score Bar */}
-                        <div className="mt-4">
-                          <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-                            <span>Score: {result.score > 0 ? "+" : ""}{result.score}</span>
-                            <span className="font-medium text-foreground">
-                              Weight: {weight}%
-                            </span>
-                          </div>
-                          <div className="h-2 bg-muted rounded-full overflow-hidden">
-                            <motion.div
-                              className="h-full rounded-full"
-                              initial={{ width: 0 }}
-                              animate={{ width: `${((result.score + 100) / 200) * 100}%` }}
-                              transition={{ duration: 0.8, delay: 0.4 + index * 0.1 }}
-                              style={{
-                                background: `linear-gradient(to right, #ef4444, #eab308, #22c55e)`,
-                              }}
-                            />
                           </div>
                         </div>
                       </div>
