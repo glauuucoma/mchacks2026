@@ -25,7 +25,7 @@ try:
     model = genai.GenerativeModel("gemini-2.5-flash")
 except:
     try:
-        print("⚠️ Trying Gemini 2.0 Flash...")
+        print("⚠️ 2.5 Failed. Trying Gemini 2.0 Flash...")
         model = genai.GenerativeModel("gemini-2.0-flash")
     except:
         print("⚠️ Falling back to Gemini 1.5 Flash...")
@@ -35,7 +35,7 @@ app = FastAPI()
 MEMORY_DB = {}
 
 # ======================================================
-# 2. GEMINI TECH ANALYSIS
+# 2. GEMINI TECHNICAL ANALYSIS
 # ======================================================
 def get_gemini_technical_analysis(ticker: str):
     print(f"🧠 Asking Gemini to read charts for {ticker}...")
@@ -43,18 +43,20 @@ def get_gemini_technical_analysis(ticker: str):
     try:
         stock = yf.Ticker(ticker)
         df = stock.history(period="3mo", auto_adjust=True)
+
         if df.empty:
             raise ValueError("Empty data")
 
         df_str = df[["Open", "High", "Low", "Close", "Volume"]].tail(60).to_string()
-        print("   ✅ Market data fetched")
+        print("   ✅ Real market data fetched.")
 
     except Exception as e:
-        print(f"⚠️ Yahoo error ({e}) — using backup")
+        print(f"   ⚠️ Yahoo error ({e}). Using backup data.")
         df_str = """
-        Open High Low Close Volume
-        120 125 119 124 50M
-        130 138 134 137 65M
+        Date        Open    High    Low     Close   Volume
+        (BACKUP)    120.5   125.0   119.0   124.5   50000000
+        ...         ...     ...     ...     ...     ...
+        (Today)     135.0   138.5   134.0   137.2   65000000
         """
 
     try:
@@ -64,44 +66,49 @@ def get_gemini_technical_analysis(ticker: str):
         Data:
         {df_str}
 
-        Return ONLY raw JSON:
-        {{
-          "tech_score": number (0–50),
-          "pattern_name": string
-        }}
+        CRITICAL:
+        Return ONLY raw JSON with:
+        - tech_score (0–50)
+        - pattern_name
         """
 
         response = model.generate_content(prompt)
-        clean = response.text.replace("```json", "").replace("```", "").strip()
-        return json.loads(clean)
+        clean_json = response.text.replace("```json", "").replace("```", "").strip()
+        return json.loads(clean_json)
 
     except Exception as e:
-        print("❌ Gemini error:", e)
-        return {"tech_score": 25, "pattern_name": "Unavailable"}
+        print(f"❌ Gemini parsing error: {e}")
+        return {"tech_score": 25, "pattern_name": "Analysis Unavailable"}
 
 # ======================================================
 # 3. SCORING
 # ======================================================
-def calculate_final_score(tech_data: dict, sentiment: GumloopResult):
+def calculate_final_score(tech_data: dict, sentiment):
     score = tech_data.get("tech_score", 25)
 
-    reddit = (sentiment.reddit_sentiment or "neutral").lower()
-    trader = (sentiment.trader_signal or "none").lower()
+    reddit = sentiment.reddit_sentiment.lower()
+    trader = sentiment.trader_signal.lower()
 
+    # --- Reddit Logic ---
     if "bullish" in reddit:
         score += 15
     elif "bearish" in reddit:
         score -= 15
+    else:
+        score += 5  # Give 5 points for Neutral (not bearish is good!)
 
+    # --- Trader Logic ---
     if "buy" in trader:
         score += 10
     elif "sell" in trader:
         score -= 10
+    elif "holding" in trader:
+        score += 5  # Give 5 points for Holding
 
     return max(0, min(100, score))
 
 # ======================================================
-# 4. ENDPOINTS
+# 4. API ENDPOINTS
 # ======================================================
 @app.post("/api/start_scan")
 def start_scan(request: ScanRequest):
@@ -125,33 +132,43 @@ def start_scan(request: ScanRequest):
 
 @app.post("/api/webhook/gumloop_result")
 def receive_result(result: GumloopResult):
-    print("📩 Webhook received:", result.dict())
+    print(f"📩 Gumloop Result Received for {result.ticker}")
+    print("📦 Payload:", result.dict())
 
+    # NEW: Handle scans not in memory (for manual testing)
     if result.scan_id not in MEMORY_DB:
-        return {"status": "error", "reason": "Scan ID not found"}
+        print(f"⚠️ Scan ID {result.scan_id} not found. Creating placeholder entry.")
+        MEMORY_DB[result.scan_id] = {
+            "status": "gumloop_only",
+            "ticker": result.ticker,
+            "tech_data": {"tech_score": 25, "pattern_name": "Not Analyzed (Manual Test)"},
+            "final_score": None
+        }
 
     tech_data = MEMORY_DB[result.scan_id]["tech_data"]
+    print(f"📊 TECH SCORE Breakdown: {tech_data}")
     final_score = calculate_final_score(tech_data, result)
 
     MEMORY_DB[result.scan_id].update({
         "status": "complete",
         "final_score": final_score,
         "analysis": {
-            "chart_pattern": tech_data.get("pattern_name"),
-            "tech_score": tech_data.get("tech_score"),
+            "chart_pattern": tech_data.get("pattern_name", "Unknown"),
+            "tech_score": tech_data.get("tech_score", 25),
             "news_summary": result.news_summary,
             "reddit_vibe": result.reddit_sentiment,
             "trader_signal": result.trader_signal
         }
     })
 
-    print(f"✅ COMPLETE — Score {final_score}/100")
+    print(f"✅ SCAN COMPLETE: {final_score}/100")
     return {"status": "success"}
 
 @app.get("/api/check_status/{scan_id}")
 def check_status(scan_id: str):
     if scan_id not in MEMORY_DB:
         raise HTTPException(status_code=404, detail="Scan ID not found")
+
     return MEMORY_DB[scan_id]
 
 # ======================================================
