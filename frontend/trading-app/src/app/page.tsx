@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useUser } from "@auth0/nextjs-auth0/client";
 import { motion } from "framer-motion";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 // Lazy load chart to prevent hydration mismatch from Math.random()
 const BackgroundChart = dynamic(
@@ -15,6 +16,67 @@ const BackgroundChart = dynamic(
 
 export default function Home() {
   const { user, isLoading } = useUser();
+  
+  // Auto-hover state
+  const [autoHoverIndex, setAutoHoverIndex] = useState<number | null>(null);
+  const [isPaused, setIsPaused] = useState(false);
+  const pauseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const cycleIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Handle user hover - pause auto-hover for 10 seconds
+  const handleUserHover = useCallback(() => {
+    setIsPaused(true);
+    setAutoHoverIndex(null);
+    
+    // Clear any existing pause timeout
+    if (pauseTimeoutRef.current) {
+      clearTimeout(pauseTimeoutRef.current);
+    }
+    
+    // Resume after 10 seconds
+    pauseTimeoutRef.current = setTimeout(() => {
+      setIsPaused(false);
+    }, 1000);
+  }, []);
+
+  const handleUserLeave = useCallback(() => {
+    // Keep paused state - will resume after timeout
+  }, []);
+
+  // Auto-hover cycle effect
+  useEffect(() => {
+    if (isPaused) {
+      if (cycleIntervalRef.current) {
+        clearInterval(cycleIntervalRef.current);
+        cycleIntervalRef.current = null;
+      }
+      return;
+    }
+
+    // Start cycling through cards with initial delay to avoid synchronous setState
+    const initialTimeout = setTimeout(() => {
+      setAutoHoverIndex(0);
+    }, 0);
+
+    cycleIntervalRef.current = setInterval(() => {
+      setAutoHoverIndex((prev) => ((prev ?? -1) + 1) % 3);
+    }, 1500);
+
+    return () => {
+      clearTimeout(initialTimeout);
+      if (cycleIntervalRef.current) {
+        clearInterval(cycleIntervalRef.current);
+      }
+    };
+  }, [isPaused]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (pauseTimeoutRef.current) clearTimeout(pauseTimeoutRef.current);
+      if (cycleIntervalRef.current) clearInterval(cycleIntervalRef.current);
+    };
+  }, []);
   
   // If user is not logged in, redirect to login page. Otherwise go to dashboard
   const getExploreMarketHref = () => {
@@ -77,32 +139,68 @@ export default function Home() {
 
         {/* Features Grid */}
         <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto mb-[50px]">
-          <div className="group p-8 border border-[#333]/10 rounded-lg bg-white/80 backdrop-blur-md shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer hover:-translate-y-2 hover:border-[#333]/20">
-            <TrendingUp className="size-8 text-[#333] mb-4 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3" />
+          <div 
+            className={`group p-8 border rounded-lg bg-white/80 backdrop-blur-md shadow-sm transition-all duration-300 cursor-pointer ${
+              autoHoverIndex === 0 
+                ? "shadow-xl -translate-y-2 border-[#333]/20" 
+                : "border-[#333]/10 hover:shadow-xl hover:-translate-y-2 hover:border-[#333]/20"
+            }`}
+            onMouseEnter={handleUserHover}
+            onMouseLeave={handleUserLeave}
+          >
+            <TrendingUp className={`size-8 text-[#333] mb-4 transition-transform duration-300 ${
+              autoHoverIndex === 0 ? "scale-110 rotate-3" : "group-hover:scale-110 group-hover:rotate-3"
+            }`} />
             <h3 className="text-xl font-medium text-[#333] mb-2 transition-colors duration-300">
               Real-Time Analytics
             </h3>
-            <p className="text-[#333]/60 text-sm leading-relaxed transition-colors duration-300 group-hover:text-[#333]/70">
+            <p className={`text-sm leading-relaxed transition-colors duration-300 ${
+              autoHoverIndex === 0 ? "text-[#333]/70" : "text-[#333]/60 group-hover:text-[#333]/70"
+            }`}>
               Monitor market sentiment and trends with live data feeds and
               comprehensive analytics.
             </p>
           </div>
-          <div className="group p-8 border border-[#333]/10 rounded-lg bg-white/80 backdrop-blur-md shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer hover:-translate-y-2 hover:border-[#333]/20">
-            <BarChart3 className="size-8 text-[#333] mb-4 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3" />
+          <div 
+            className={`group p-8 border rounded-lg bg-white/80 backdrop-blur-md shadow-sm transition-all duration-300 cursor-pointer ${
+              autoHoverIndex === 1 
+                ? "shadow-xl -translate-y-2 border-[#333]/20" 
+                : "border-[#333]/10 hover:shadow-xl hover:-translate-y-2 hover:border-[#333]/20"
+            }`}
+            onMouseEnter={handleUserHover}
+            onMouseLeave={handleUserLeave}
+          >
+            <BarChart3 className={`size-8 text-[#333] mb-4 transition-transform duration-300 ${
+              autoHoverIndex === 1 ? "scale-110 rotate-3" : "group-hover:scale-110 group-hover:rotate-3"
+            }`} />
             <h3 className="text-xl font-medium text-[#333] mb-2 transition-colors duration-300">
               Smart Insights
             </h3>
-            <p className="text-[#333]/60 text-sm leading-relaxed transition-colors duration-300 group-hover:text-[#333]/70">
+            <p className={`text-sm leading-relaxed transition-colors duration-300 ${
+              autoHoverIndex === 1 ? "text-[#333]/70" : "text-[#333]/60 group-hover:text-[#333]/70"
+            }`}>
               AI-powered predictions help you stay ahead of market movements
               and make informed decisions.
             </p>
           </div>
-          <div className="group p-8 border border-[#333]/10 rounded-lg bg-white/80 backdrop-blur-md shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer hover:-translate-y-2 hover:border-[#333]/20">
-            <Activity className="size-8 text-[#333] mb-4 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3" />
+          <div 
+            className={`group p-8 border rounded-lg bg-white/80 backdrop-blur-md shadow-sm transition-all duration-300 cursor-pointer ${
+              autoHoverIndex === 2 
+                ? "shadow-xl -translate-y-2 border-[#333]/20" 
+                : "border-[#333]/10 hover:shadow-xl hover:-translate-y-2 hover:border-[#333]/20"
+            }`}
+            onMouseEnter={handleUserHover}
+            onMouseLeave={handleUserLeave}
+          >
+            <Activity className={`size-8 text-[#333] mb-4 transition-transform duration-300 ${
+              autoHoverIndex === 2 ? "scale-110 rotate-3" : "group-hover:scale-110 group-hover:rotate-3"
+            }`} />
             <h3 className="text-xl font-medium text-[#333] mb-2 transition-colors duration-300">
               Automated Trading
             </h3>
-            <p className="text-[#333]/60 text-sm leading-relaxed transition-colors duration-300 group-hover:text-[#333]/70">
+            <p className={`text-sm leading-relaxed transition-colors duration-300 ${
+              autoHoverIndex === 2 ? "text-[#333]/70" : "text-[#333]/60 group-hover:text-[#333]/70"
+            }`}>
               Set up automated strategies that execute trades based on your
               predefined criteria and risk tolerance.
             </p>

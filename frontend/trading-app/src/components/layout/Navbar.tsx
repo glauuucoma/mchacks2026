@@ -4,14 +4,16 @@ import { Button } from "@/components/ui/button";
 import { useUser } from "@auth0/nextjs-auth0/client";
 import ProfileBanner from "@/components/login-profile/ProfileBanner";
 import Link from "next/link";
+import Image from "next/image";
 
 export const Navbar = () => {
   const { user, isLoading } = useUser();
 
   return (
     <nav className="flex items-center justify-between py-8 px-[100px]">
-      <Link href="/" className="text-2xl font-semibold text-[#333] tracking-tight hover:opacity-80 transition-opacity">
-        Trading
+      <Link href="/" className="flex items-center gap-3 text-2xl font-semibold text-[#333] tracking-tight hover:opacity-80 transition-opacity">
+        <Image src="/Logo.svg" alt="SentiTrade Logo" width={30} height={30} className="object-contain" />
+        SentiTrade
       </Link>
       <div className="flex items-center gap-6">
         {!isLoading && (
