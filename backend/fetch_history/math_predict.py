@@ -24,8 +24,9 @@ def simple_decision(row):
 
 # ---------- MAIN ----------
 def predict_last_date(symbol):
-    stock_dir = os.path.join("stocks_data", symbol.upper())
+    stock_dir = os.path.join(os.path.dirname(__file__), "stocks_data", symbol.upper())
     features_file = os.path.join(stock_dir, f"{symbol.upper()}_features_reg.csv")
+    print(f"[DEBUG] Checking for features file at: {os.path.abspath(features_file)} (symbol={symbol})")
 
     if not os.path.exists(features_file):
         print(f"❌ Features file not found: {features_file}")
