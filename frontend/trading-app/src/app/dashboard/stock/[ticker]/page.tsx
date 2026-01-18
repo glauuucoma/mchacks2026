@@ -95,12 +95,14 @@ interface AnalysisResult {
 
 // Congress trading data from API
 interface CongressPerson {
-  name: string;
-  office: string;
-  type: string;
-  amount: string;
-  transactionDate: string;
+  name?: string;
+  office?: string;
+  type?: string;
+  amount?: string;
+  transactionDate?: string;
   photo_url?: string;
+  // Allow any other fields from the API
+  [key: string]: string | undefined;
 }
 
 const TIME_RANGES: TimeRange[] = ["1D", "1W", "1M", "3M", "6M", "1Y", "5Y"];
@@ -152,7 +154,8 @@ export default function StockDetailPage() {
       setIsCongressLoading(true);
       try {
         const data = await congressService.getActivity(ticker);
-        setCongressData(data?.congress_data || data?.data || []);
+        console.log("Congress API response:", data); // Debug: see what the API returns
+        setCongressData(data?.congress_data || data?.data || data || []);
       } catch (error) {
         console.error("Failed to fetch congress data:", error);
         setCongressData([]);
@@ -1324,19 +1327,20 @@ function InsiderKnowledgeTab({
                       {person.photo_url ? (
                         <img
                           src={person.photo_url}
-                          alt={person.name}
+                          alt={person.name || "Congress Member"}
                           className="size-full object-cover"
                           onError={(e) => {
                             (e.target as HTMLImageElement).style.display = 'none';
                             const parent = (e.target as HTMLImageElement).parentElement;
                             if (parent) {
-                              parent.innerHTML = `<span class="text-lg font-bold text-primary">${person.name.split(' ').map(n => n[0]).join('')}</span>`;
+                              const initials = (person.name || "??").split(' ').map(n => n[0] || '').join('');
+                              parent.innerHTML = `<span class="text-lg font-bold text-primary">${initials}</span>`;
                             }
                           }}
                         />
                       ) : (
                         <span className="text-lg font-bold text-primary">
-                          {person.name.split(' ').map(n => n[0]).join('')}
+                          {(person.name || "??").split(' ').map(n => n[0] || '').join('')}
                         </span>
                       )}
                     </div>
@@ -1346,11 +1350,11 @@ function InsiderKnowledgeTab({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-semibold text-foreground text-lg">
-                        {person.name}
+                        {person.name || "Unknown Member"}
                       </h3>
                     </div>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {person.office}
+                      {person.office || "Office not specified"}
                     </p>
 
                     {/* Trade Details Grid */}
@@ -1361,21 +1365,21 @@ function InsiderKnowledgeTab({
                         </p>
                         <span
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium ${
-                            person.type.toLowerCase().includes("purchase") || person.type.toLowerCase().includes("buy")
+                            (person.type || "").toLowerCase().includes("purchase") || (person.type || "").toLowerCase().includes("buy")
                               ? "bg-emerald-500/10 text-emerald-600"
-                              : person.type.toLowerCase().includes("sale") || person.type.toLowerCase().includes("sell")
+                              : (person.type || "").toLowerCase().includes("sale") || (person.type || "").toLowerCase().includes("sell")
                               ? "bg-red-500/10 text-red-600"
                               : "bg-amber-500/10 text-amber-600"
                           }`}
                         >
-                          {person.type.toLowerCase().includes("purchase") || person.type.toLowerCase().includes("buy") ? (
+                          {(person.type || "").toLowerCase().includes("purchase") || (person.type || "").toLowerCase().includes("buy") ? (
                             <TrendingUp className="size-3.5" />
-                          ) : person.type.toLowerCase().includes("sale") || person.type.toLowerCase().includes("sell") ? (
+                          ) : (person.type || "").toLowerCase().includes("sale") || (person.type || "").toLowerCase().includes("sell") ? (
                             <TrendingDown className="size-3.5" />
                           ) : (
                             <Activity className="size-3.5" />
                           )}
-                          {person.type}
+                          {person.type || "N/A"}
                         </span>
                       </div>
 
@@ -1384,7 +1388,7 @@ function InsiderKnowledgeTab({
                           Amount
                         </p>
                         <p className="font-semibold text-foreground font-mono">
-                          {person.amount}
+                          {person.amount || "N/A"}
                         </p>
                       </div>
 
@@ -1393,7 +1397,7 @@ function InsiderKnowledgeTab({
                           Transaction Date
                         </p>
                         <p className="font-medium text-foreground">
-                          {person.transactionDate}
+                          {person.transactionDate || "N/A"}
                         </p>
                       </div>
                     </div>
