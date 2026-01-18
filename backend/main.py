@@ -7,29 +7,32 @@ import yfinance as yf
 import google.generativeai as genai
 import json
 import os
+import requests
+import datetime
+from langdetect import detect
 from dotenv import load_dotenv
 
 # ======================================================
 # 1. SETUP
 # ======================================================
 load_dotenv()
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+# GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-if not GEMINI_API_KEY:
-    raise ValueError("❌ CRITICAL ERROR: GEMINI_API_KEY is missing")
+# if not GEMINI_API_KEY:
+#     raise ValueError("❌ CRITICAL ERROR: GEMINI_API_KEY is missing")
 
-genai.configure(api_key=GEMINI_API_KEY)
+# genai.configure(api_key=GEMINI_API_KEY)
 
-try:
-    print("🧠 Attempting to load Gemini 2.5 Flash...")
-    model = genai.GenerativeModel("gemini-2.5-flash")
-except:
-    try:
-        print("⚠️ 2.5 Failed. Trying Gemini 2.0 Flash...")
-        model = genai.GenerativeModel("gemini-2.0-flash")
-    except:
-        print("⚠️ Falling back to Gemini 1.5 Flash...")
-        model = genai.GenerativeModel("gemini-1.5-flash")
+# try:
+#     print("🧠 Attempting to load Gemini 2.5 Flash...")
+#     model = genai.GenerativeModel("gemini-2.5-flash")
+# except:
+#     try:
+#         print("⚠️ 2.5 Failed. Trying Gemini 2.0 Flash...")
+#         model = genai.GenerativeModel("gemini-2.0-flash")
+#     except:
+#         print("⚠️ Falling back to Gemini 1.5 Flash...")
+#         model = genai.GenerativeModel("gemini-1.5-flash")
 
 app = FastAPI()
 MEMORY_DB = {}
@@ -170,6 +173,37 @@ def check_status(scan_id: str):
         raise HTTPException(status_code=404, detail="Scan ID not found")
 
     return MEMORY_DB[scan_id]
+
+@app.post("/api/get_news_headlines")
+def get_news_headlines(data: dict):
+    NEWS_API_KEY = '1071542b8f1c470786eb6ccf87080daf'
+    
+    ticker = data['ticker']
+    day_offset = data.get('day_offset', 3)
+    print(f"📰 Fetching news headlines for {ticker}")
+
+    BASE_NEWS_API_URL = 'https://newsapi.org/v2/everything?'
+
+    sort_by = "popularity"
+    from_date = (datetime.datetime.now() - datetime.timedelta(days=day_offset)).strftime('%Y-%m-%d')
+
+    url = (
+        f"{BASE_NEWS_API_URL}"
+        f'q={ticker}&'
+        f'from={from_date}&'
+        f'sortBy={sort_by}&'
+        f'apiKey={NEWS_API_KEY}'
+    )
+    response = requests.get(url)
+
+    # Filter to only English articles
+    articles = response.json()['articles']
+    articles = [article for article in articles if detect(article['title']) == 'en']
+
+    return {
+        "articles": articles,
+        "status_code": response.status_code
+    }
 
 # ======================================================
 # 5. RUN
