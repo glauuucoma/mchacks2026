@@ -23,14 +23,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!GEMINI_API_KEY) {
-      // Return mock response if no API key
-      return NextResponse.json({
-        response: getMockResponse(message, stockContext),
-        isMock: true,
-      });
-    }
-
     const systemPrompt = `You are a helpful financial assistant specializing in stock market analysis. You are currently helping the user understand information about ${stockContext?.name || "a stock"} (${stockContext?.ticker || "unknown ticker"}).
 
 Current stock data:
@@ -101,29 +93,4 @@ IMPORTANT: Use plain text only. Do not use markdown formatting, bullet points, b
       { status: 500 }
     );
   }
-}
-
-// Mock responses when no API key is available
-function getMockResponse(message: string, stockContext?: StockContext): string {
-  const ticker = stockContext?.ticker || "this stock";
-  const name = stockContext?.name || "the company";
-  const lowerMessage = message.toLowerCase();
-
-  if (lowerMessage.includes("buy") || lowerMessage.includes("invest")) {
-    return `Whether to buy ${ticker} depends on your investment goals, risk tolerance, and time horizon. ${name} is in the ${stockContext?.industry || "technology"} sector. Consider diversification and consult a financial advisor for personalized advice.`;
-  }
-
-  if (lowerMessage.includes("price") || lowerMessage.includes("worth")) {
-    return `${ticker} is currently trading at $${stockContext?.price || "N/A"}. The stock has moved ${stockContext?.change || "N/A"}% today. Remember that past performance doesn't guarantee future results.`;
-  }
-
-  if (lowerMessage.includes("risk")) {
-    return `Key risks for ${name} include market volatility, sector-specific challenges, and broader economic conditions. As with any investment, there's potential for both gains and losses.`;
-  }
-
-  if (lowerMessage.includes("competitor") || lowerMessage.includes("compare")) {
-    return `${name} competes in the ${stockContext?.industry || "market"}. To make informed comparisons, consider metrics like P/E ratio, revenue growth, and market share alongside qualitative factors.`;
-  }
-
-  return `Thanks for your question about ${name} (${ticker}). Based on current market data, the stock is trading at $${stockContext?.price || "N/A"} with a ${stockContext?.change || "0"}% change today. Is there something specific you'd like to know about this stock?`;
 }

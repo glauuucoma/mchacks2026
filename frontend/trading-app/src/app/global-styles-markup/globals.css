@@ -122,4 +122,42 @@
   body {
     @apply bg-background text-foreground font-sans;
   }
+  
+  /* Slider styles */
+  input[type="range"].slider {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  
+  input[type="range"].slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #333;
+    cursor: pointer;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  }
+  
+  input[type="range"].slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #333;
+    cursor: pointer;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  }
+  
+  input[type="range"].slider::-webkit-slider-runnable-track {
+    height: 8px;
+    border-radius: 4px;
+  }
+  
+  input[type="range"].slider::-moz-range-track {
+    height: 8px;
+    border-radius: 4px;
+  }
 }

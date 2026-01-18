@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useUser } from "@auth0/nextjs-auth0/client";
-import ProfileBanner from "@/components/login-profile/ProfileBanner";
+import ProfileBanner from "@/components/avatar/ProfileBanner";
 import Link from "next/link";
 import Image from "next/image";
 

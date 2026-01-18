@@ -360,7 +360,6 @@ export default function StockList() {
                   currentSort={sortField}
                   direction={sortDirection}
                   onSort={handleSort}
-                  className="cursor-pointer"
                 />
               </th>
               <th className="py-3 px-4">

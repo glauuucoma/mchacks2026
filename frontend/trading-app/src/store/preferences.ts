@@ -1,9 +1,17 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+export interface SourceWeights {
+  "ml-model": number;
+  "news-outlets": number;
+  "congress": number;
+  "social-media": number;
+}
+
 interface PreferencesState {
   selectedSectors: string[];
   selectedSources: string[];
+  sourceWeights: SourceWeights;
   setSelectedSectors: (sectors: string[]) => void;
   addSector: (sector: string) => void;
   removeSector: (sector: string) => void;
@@ -12,6 +20,8 @@ interface PreferencesState {
   addSource: (source: string) => void;
   removeSource: (source: string) => void;
   toggleSource: (source: string) => void;
+  setSourceWeights: (weights: SourceWeights) => void;
+  setSourceWeight: (source: keyof SourceWeights, weight: number) => void;
   clearPreferences: () => void;
 }
 
@@ -20,6 +30,12 @@ const usePreferencesStore = create<PreferencesState>()(
     (set) => ({
       selectedSectors: [],
       selectedSources: [],
+      sourceWeights: {
+        "ml-model": 25,
+        "news-outlets": 25,
+        "congress": 25,
+        "social-media": 25,
+      },
 
       setSelectedSectors: (sectors) => set({ selectedSectors: sectors }),
       
@@ -63,10 +79,26 @@ const usePreferencesStore = create<PreferencesState>()(
             : [...state.selectedSources, source],
         })),
 
+      setSourceWeights: (weights) => set({ sourceWeights: weights }),
+
+      setSourceWeight: (source, weight) =>
+        set((state) => ({
+          sourceWeights: {
+            ...state.sourceWeights,
+            [source]: Math.max(0, Math.min(100, weight)),
+          },
+        })),
+
       clearPreferences: () =>
         set({
           selectedSectors: [],
           selectedSources: [],
+          sourceWeights: {
+            "ml-model": 25,
+            "news-outlets": 25,
+            "congress": 25,
+            "social-media": 25,
+          },
         }),
     }),
     {
