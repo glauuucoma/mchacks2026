@@ -254,13 +254,12 @@ export default function StockDetailPage() {
   const fetchRecommendation = useCallback(async () => {
     setIsLoadingRecommendation(true);
     try {
-      const response = await fetch("http://127.0.0.1:8000/recommendation", {
-        method: "POST",
+      const response = await fetch(`http://127.0.0.1:8000/recommendation?symbol=CNQ`, {
+        method: "GET",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify("GOOG"),
-      });
+        });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -336,7 +335,7 @@ export default function StockDetailPage() {
                 <Star className="size-4" />
                 <span className="hidden sm:inline">Watchlist</span>
               </Button>
-              <Button variant="outline" size="sm" className="gap-2">
+              <Button variant="outline" size="sm" className="gap-2" onClick={fetchRecommendation}>
                 <Share2 className="size-4" />
                 <span className="hidden sm:inline">Share</span>
               </Button>

@@ -4,7 +4,7 @@ Pipeline: fetch → features → train/load → predict today
 import argparse, os, subprocess, sys
 import torch
 import pandas as pd
-from train_model import GRURegressor, FEATURES, SEQ_LEN, THRESH_MULT
+from .train_model import GRURegressor, FEATURES, SEQ_LEN, THRESH_MULT
 import joblib
 
 def predict_today(symbol, stock_dir):
@@ -12,9 +12,14 @@ def predict_today(symbol, stock_dir):
     scaler_path = os.path.join(stock_dir, f"{symbol}_scaler.save")
     features_file = os.path.join(stock_dir, f"{symbol}_features_reg.csv")
 
-    if not os.path.exists(model_path) or not os.path.exists(features_file) or not os.path.exists(scaler_path):
-        print("❌ Model, scaler, or features file not found. Cannot predict today.")
-        return
+    # If any file is missing, run the pipeline to generate them
+    if not (os.path.exists(model_path) and os.path.exists(features_file) and os.path.exists(scaler_path)):
+        print(f"⚠️ Missing files for {symbol}. Running pipeline...")
+        run_pipeline(symbol)
+        # After running, check again
+        if not (os.path.exists(model_path) and os.path.exists(features_file) and os.path.exists(scaler_path)):
+            print("❌ Model, scaler, or features file not found. Cannot predict today.")
+            return None
 
     # Load CSV
     df = pd.read_csv(features_file, parse_dates=["Date"], index_col="Date")
