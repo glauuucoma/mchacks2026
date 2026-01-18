@@ -172,6 +172,62 @@ export default function StockDetailPage() {
     return { change, changePercent, isPositive: change >= 0 };
   }, [candleData]);
 
+  // Recommendations from backend
+  const fetchRecommendation = useCallback(async (tickerParam: string): Promise<number> => {
+    setIsLoadingRecommendation(true);
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/GRURegressor?symbol=${tickerParam}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Check for error response
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      
+      // Extract recommendation text - must be a valid string
+      if (!data.recommendation || typeof data.recommendation !== 'string') {
+        throw new Error("Invalid recommendation response from server");
+      }
+      
+      const recommendationText = data.recommendation;
+      
+      // Set the recommendation text for display
+      setRecommendation(recommendationText);
+      
+      // Convert recommendation to score: BUY = 50, SELL = -50, HOLD = 0
+      const upperText = recommendationText.toUpperCase();
+      let score: number;
+      if (upperText === "BUY") {
+        score = 50;
+      } else if (upperText === "SELL") {
+        score = -50;
+      } else if (upperText === "HOLD") {
+        score = 0;
+      } else {
+        throw new Error(`Invalid recommendation value: ${recommendationText}`);
+      }
+      
+      return score;
+    } catch (error) {
+      console.error("Error fetching recommendation:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to fetch recommendation";
+      setRecommendation(`Error: ${errorMessage}`);
+      throw error; // Re-throw to fail the website
+    } finally {
+      setIsLoadingRecommendation(false);
+    }
+  }, []);
+
   const runAnalysis = useCallback(async () => {
     setAnalysis({
       isAnalyzing: true,
@@ -199,7 +255,23 @@ export default function StockDetailPage() {
       return "hold";
     };
 
-    const mlScore = generateScore();
+    // GENERATE RESULTS
+    let mlScore: number;
+    try {
+      mlScore = await fetchRecommendation(ticker);
+    } catch (error) {
+      // Stop analysis and show error - no fallback
+      setAnalysis({
+        isAnalyzing: false,
+        currentStep: 0,
+        completedSteps: [],
+        result: null,
+      });
+      const errorMessage = error instanceof Error ? error.message : "ML model prediction failed";
+      setRecommendation(`Error: ${errorMessage}`);
+      throw error; // Re-throw to fail the website
+    }
+    
     const newsScore = generateScore();
     const congressScore = generateScore();
     const socialScore = generateScore();
@@ -230,7 +302,7 @@ export default function StockDetailPage() {
 
     // Navigate to AI Analysis tab when done
     setActiveTab("ai-analysis");
-  }, [sourceWeights]);
+  }, [sourceWeights, ticker, fetchRecommendation]);
 
   const resetAnalysis = useCallback(() => {
     setAnalysis({
@@ -239,30 +311,6 @@ export default function StockDetailPage() {
       completedSteps: [],
       result: null,
     });
-  }, []);
-
-  const fetchRecommendation = useCallback(async () => {
-    setIsLoadingRecommendation(true);
-    try {
-      const response = await fetch(`http://127.0.0.1:8000/math_recommendation?symbol=OXY`, {  //http://127.0.0.1:8000/GRURegressor?symbol=OXY
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.text();
-      setRecommendation(data);
-    } catch (error) {
-      console.error("Error fetching recommendation:", error);
-      setRecommendation("Error loading recommendation");
-    } finally {
-      setIsLoadingRecommendation(false);
-    }
   }, []);
 
   const isPositive = (stock?.quote?.dp ?? 0) >= 0;
@@ -302,7 +350,7 @@ export default function StockDetailPage() {
                 variant="outline" 
                 size="sm" 
                 className="gap-2"
-                onClick={fetchRecommendation}
+                onClick={() => fetchRecommendation(ticker)}
                 disabled={isLoadingRecommendation}
               >
                 {isLoadingRecommendation ? (
@@ -325,7 +373,7 @@ export default function StockDetailPage() {
                 <Star className="size-4" />
                 <span className="hidden sm:inline">Watchlist</span>
               </Button>
-              <Button variant="outline" size="sm" className="gap-2" onClick={fetchRecommendation}>
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => fetchRecommendation(ticker)}>
                 <Share2 className="size-4" />
                 <span className="hidden sm:inline">Share</span>
               </Button>
@@ -344,7 +392,7 @@ export default function StockDetailPage() {
             className="mb-8 text-center"
           >
             <h1 className="text-7xl md:text-8xl lg:text-9xl font-bold text-foreground leading-tight">
-              {recommendation}
+              {typeof recommendation === 'string' ? recommendation : String(recommendation)}
             </h1>
           </motion.div>
         )}

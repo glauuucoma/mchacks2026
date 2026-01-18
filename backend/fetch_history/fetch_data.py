@@ -18,7 +18,7 @@ def main(symbol, output_dir):
     
     output_file = os.path.join(output_dir, f"{symbol}_data.csv")
     df.to_csv(output_file)
-    print(f"✅ Saved: {output_file}")
+    print(f"[OK] Saved: {output_file}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

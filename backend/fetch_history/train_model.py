@@ -38,11 +38,11 @@ def make_sequences(X, y):
 def predict_for_date(df, scaler, model, date, device):
     """Predict 5-day return for any historical date"""
     if date not in df.index:
-        print(f"❌ Date {date.date()} not in dataset")
+        print(f"[ERROR] Date {date.date()} not in dataset")
         return
     pos = df.index.get_loc(date)
     if pos < SEQ_LEN:
-        print(f"❌ Not enough history to predict for {date.date()}")
+        print(f"[ERROR] Not enough history to predict for {date.date()}")
         return
     seq = scaler.transform(df[FEATURES].iloc[pos-SEQ_LEN+1:pos+1])
     seq_tensor = torch.tensor(seq, dtype=torch.float32).unsqueeze(0).to(device)
@@ -132,8 +132,8 @@ def train(symbol, output_dir):
             equity *= np.exp(-y_test[i])
             trades += 1
 
-    print(f"\n📈 Backtest equity: {equity:.2f}")
-    print(f"🔁 Trades taken: {trades}")
+    print(f"\n[BACKTEST] Equity: {equity:.2f}")
+    print(f"[INFO] Trades taken: {trades}")
 
     # Predict for today
     last_seq = scaler.transform(df[FEATURES].iloc[-SEQ_LEN:])
@@ -149,22 +149,22 @@ def train(symbol, output_dir):
     else:
         decision_today = "HOLD"
 
-    print("\n📅 TODAY")
+    print("\n[TODAY]")
     print(f"Predicted 5d return: {pred_today:.4%}")
     print(f"ATR threshold: {THRESH_MULT * atr_today:.4%}")
-    print(f"🎯 DECISION: {decision_today}")
+    print(f"[DECISION] {decision_today}")
 
     # ---------- SAVE MODEL ----------
 # Save model weights only
     torch.save(model.state_dict(), f"{output_dir}/{symbol}_reg_model.pth")
     # Save scaler separately
     joblib.dump(scaler, f"{output_dir}/{symbol}_scaler.save")
-    print("✅ Model saved")
+    print("[OK] Model saved")
 
     # ---------- DEMO: PREDICT HISTORICAL DATE ----------
     # Example: predict 5 days ago
     demo_date = df.index[-6]  # 5 days before last date
-    print("\n📅 DEMO HISTORICAL PREDICTION")
+    print("\n[DEMO] Historical prediction")
     predict_for_date(df, scaler, model, demo_date, device)
 
 if __name__ == "__main__":
