@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/button";
 import { useStockDetail } from "@/lib/stocks-api";
 import { formatPrice, formatMarketCap, formatVolume, formatChange } from "./utils";
 
-interface StockDetailModalProps {
+interface StockDetailViewProps {
   ticker: string;
   isOpen: boolean;
   onClose: () => void;
@@ -53,7 +53,7 @@ export default function StockDetailModal({
   ticker,
   isOpen,
   onClose,
-}: StockDetailModalProps) {
+}: StockDetailViewProps) {
   const { data: stock, isLoading, isError } = useStockDetail(ticker, isOpen);
   
   const [analysis, setAnalysis] = useState<AnalysisState>({

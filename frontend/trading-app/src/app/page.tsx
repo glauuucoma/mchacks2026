@@ -10,7 +10,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 
 // Lazy load chart to prevent hydration mismatch from Math.random()
 const BackgroundChart = dynamic(
-  () => import("@/components/select/BackgroundChart"),
+  () => import("@/components/decorations/BackgroundChart"),
   { ssr: false }
 );
 

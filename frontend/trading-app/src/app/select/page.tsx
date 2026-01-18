@@ -9,7 +9,7 @@ import usePreferencesStore from "@/store/preferences";
 
 // Lazy load chart to prevent blocking
 const BackgroundChart = dynamic(
-  () => import("@/components/select/BackgroundChart"),
+  () => import("@/components/decorations/BackgroundChart"),
   { ssr: false }
 );
 
