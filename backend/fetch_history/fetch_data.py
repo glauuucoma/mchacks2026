@@ -1,6 +1,7 @@
-import argparse, yfinance as yf, pandas as pd
+import argparse, yfinance as yf, pandas as pd, sys
+import os
 
-def main(symbol):
+def main(symbol, output_dir):
     print(f"Fetching 5 years data for {symbol}...")
     
     df = yf.download(symbol, period="5y", interval="1d", progress=False)
@@ -9,15 +10,19 @@ def main(symbol):
         print(f"No data for {symbol}")
         return
     
-    df.columns = df.columns.droplevel(1) 
+    if df.columns.nlevels > 1:
+        df.columns = df.columns.droplevel(1)
+    
     df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
     df.sort_index(inplace=True)
     
-    df.to_csv(f'{symbol.lower()}_data.csv')
-    print(f"Saved {len(df)} rows to {symbol.lower()}_data.csv")
+    output_file = os.path.join(output_dir, f"{symbol}_data.csv")
+    df.to_csv(output_file)
+    print(f"✅ Saved: {output_file}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("symbol", default="AAPL", nargs="?")
+    parser.add_argument("symbol")
+    parser.add_argument("output_dir")
     args = parser.parse_args()
-    main(args.symbol)
+    main(args.symbol, args.output_dir)
