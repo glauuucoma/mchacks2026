@@ -21,7 +21,7 @@ STOCK_DIR = os.path.join(os.path.dirname(__file__), "fetch_history", "stocks_dat
 
 
 # Math-based recommendation endpoint
-@app.get("/math_recommendation")
+@app.get("/MathFormula")
 def get_math_recommendation(symbol: str = Query(..., description="Stock symbol to predict")):
     """
     Returns math-based recommendation for a given symbol.

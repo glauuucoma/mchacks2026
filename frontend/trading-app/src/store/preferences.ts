@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 
 export interface SourceWeights {
   "ml-model": number;
+  "math-formula": number;
   "news-outlets": number;
   "congress": number;
   "social-media": number;
@@ -31,10 +32,11 @@ const usePreferencesStore = create<PreferencesState>()(
       selectedSectors: [],
       selectedSources: [],
       sourceWeights: {
-        "ml-model": 25,
-        "news-outlets": 25,
-        "congress": 25,
-        "social-media": 25,
+        "ml-model": 20,
+        "math-formula": 20,
+        "news-outlets": 20,
+        "congress": 20,
+        "social-media": 20,
       },
 
       setSelectedSectors: (sectors) => set({ selectedSectors: sectors }),
@@ -94,10 +96,11 @@ const usePreferencesStore = create<PreferencesState>()(
           selectedSectors: [],
           selectedSources: [],
           sourceWeights: {
-            "ml-model": 25,
-            "news-outlets": 25,
-            "congress": 25,
-            "social-media": 25,
+            "ml-model": 20,
+            "math-formula": 20,
+            "news-outlets": 20,
+            "congress": 20,
+            "social-media": 20,
           },
         }),
     }),

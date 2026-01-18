@@ -29,6 +29,7 @@ import {
   FileText,
   Users,
   Brain,
+  Calculator,
   Newspaper,
   MessageSquare,
   Landmark,
@@ -131,10 +132,66 @@ export default function StockDetailPage() {
   }, [candleData]);
 
   // Recommendations from backend
-  const fetchRecommendation = useCallback(async (tickerParam: string): Promise<number> => {
+  const fetchGRURegressor = useCallback(async (tickerParam: string): Promise<number> => {
     setIsLoadingRecommendation(true);
     try {
       const response = await fetch(`http://127.0.0.1:8000/GRURegressor?symbol=${tickerParam}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Check for error response
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      
+      // Extract recommendation text - must be a valid string
+      if (!data.recommendation || typeof data.recommendation !== 'string') {
+        throw new Error("Invalid recommendation response from server");
+      }
+      
+      const recommendationText = data.recommendation;
+      
+      // Set the recommendation text for display
+      setRecommendation(recommendationText);
+      
+      // Convert recommendation to score: BUY = 50, SELL = -50, HOLD = 0
+      const upperText = recommendationText.toUpperCase();
+      let score: number;
+      if (upperText === "BUY") {
+        score = 50;
+      } else if (upperText === "SELL") {
+        score = -50;
+      } else if (upperText === "HOLD") {
+        score = 0;
+      } else {
+        throw new Error(`Invalid recommendation value: ${recommendationText}`);
+      }
+      
+      return score;
+    } catch (error) {
+      console.error("Error fetching recommendation:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to fetch recommendation";
+      setRecommendation(`Error: ${errorMessage}`);
+      throw error; // Re-throw to fail the website
+    } finally {
+      setIsLoadingRecommendation(false);
+    }
+  }, []);
+
+    // Recommendations from backend
+  const fetchMathFormula = useCallback(async (tickerParam: string): Promise<number> => {
+    setIsLoadingRecommendation(true);
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/MathFormula?symbol=${tickerParam}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -212,11 +269,23 @@ export default function StockDetailPage() {
       if (score < -30) return "sell";
       return "hold";
     };
+    
+    const getGRURegressor = (score: number): "buy" | "sell" | "hold" => {
+      if (score > 30) return "buy";
+      if (score < -30) return "sell";
+      return "hold";
+    };
+
+    const getMathFormulaRecommendation = (score: number): "buy" | "sell" | "hold" => {
+      if (score > 30) return "buy";
+      if (score < -30) return "sell";
+      return "hold";
+    };
 
     // GENERATE RESULTS
     let mlScore: number;
     try {
-      mlScore = await fetchRecommendation(ticker);
+      mlScore = await fetchGRURegressor(ticker);
     } catch (error) {
       // Stop analysis and show error - no fallback
       setAnalysis({
@@ -229,13 +298,30 @@ export default function StockDetailPage() {
       setRecommendation(`Error: ${errorMessage}`);
       throw error; // Re-throw to fail the website
     }
+
+    let mathScore: number;
+    try {
+      mathScore = await fetchMathFormula(ticker);
+    } catch (error) {
+      // Stop analysis and show error - no fallback
+      setAnalysis({
+        isAnalyzing: false,
+        currentStep: 0,
+        completedSteps: [],
+        result: null,
+      });
+      const errorMessage = error instanceof Error ? error.message : "Math prediction failed";
+      setRecommendation(`Error: ${errorMessage}`);
+      throw error; // Re-throw to fail the website
+    }
     
     const newsScore = generateScore();
     const congressScore = generateScore();
     const socialScore = generateScore();
 
     const sources = {
-      "ml-model": { recommendation: getRecommendation(mlScore), score: mlScore },
+      "ml-model": { recommendation: getGRURegressor(mlScore), score: mlScore },
+      "math-formula": { recommendation: getMathFormulaRecommendation(mathScore), score: mathScore },
       "news-outlets": { recommendation: getRecommendation(newsScore), score: newsScore },
       congress: { recommendation: getRecommendation(congressScore), score: congressScore },
       "social-media": { recommendation: getRecommendation(socialScore), score: socialScore },
@@ -245,6 +331,7 @@ export default function StockDetailPage() {
     const totalWeight = Object.values(sourceWeights).reduce((a, b) => a + b, 0) || 100;
     const weightedScore = 
       (mlScore * sourceWeights["ml-model"] +
+       mathScore * sourceWeights["math-formula"] +
        newsScore * sourceWeights["news-outlets"] +
        congressScore * sourceWeights["congress"] +
        socialScore * sourceWeights["social-media"]) / totalWeight;
@@ -260,7 +347,7 @@ export default function StockDetailPage() {
 
     // Navigate to AI Analysis tab when done
     setActiveTab("ai-analysis");
-  }, [sourceWeights, ticker, fetchRecommendation]);
+  }, [sourceWeights, ticker, fetchGRURegressor, fetchMathFormula]);
 
   const resetAnalysis = useCallback(() => {
     setAnalysis({
@@ -1438,6 +1525,11 @@ function AIAnalysisTab({
       label: "Machine Learning Model",
       icon: <Brain className="size-5" />,
       description: "AI prediction based on historical patterns and technical indicators",
+    },
+    "math-formula": {
+      label: "Mathematical Formula",
+      icon: <Calculator className="size-5" />,
+      description: "Mathematical analysis using established financial formulas",
     },
     "news-outlets": {
       label: "News Outlets",
