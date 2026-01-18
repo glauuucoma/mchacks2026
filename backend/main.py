@@ -30,7 +30,7 @@ genai.configure(api_key=GEMINI_API_KEY)
 # Robust Model Loading
 try:
     print("🧠 Attempting to load Gemini 1.5 Flash...")
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    model = genai.GenerativeModel("gemini-2.5-flash")
 except Exception:
     print("⚠️ Falling back to Gemini 1.0 Pro...")
     model = genai.GenerativeModel("gemini-pro")
