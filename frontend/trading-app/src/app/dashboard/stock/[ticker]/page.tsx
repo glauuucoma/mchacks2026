@@ -90,6 +90,7 @@ import {
   InsiderKnowledgeTab,
   AIAnalysisTab,
 } from "./components";
+import AskAIChat from "@/components/dashboard/AskAIChat";
 
 // =============================================================================
 // MAIN PAGE COMPONENT
@@ -491,7 +492,7 @@ export default function StockDetailPage() {
                     <button
                       key={tab.id}
                       onClick={() => handleTabChange(tab.id)}
-                      className={`relative flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors ${
+                      className={`relative flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors cursor-pointer ${
                         isActive
                           ? "text-foreground"
                           : "text-muted-foreground hover:text-foreground"
@@ -520,7 +521,6 @@ export default function StockDetailPage() {
                   key="stock-info"
                   stock={stock}
                   ticker={ticker}
-                  stockContext={stockContext}
                   candleData={candleData}
                   candlesLoading={candlesLoading}
                   chartPriceChange={chartPriceChange}
@@ -561,6 +561,9 @@ export default function StockDetailPage() {
           </div>
         ) : null}
       </main>
+
+      {/* Floating AI Chat */}
+      {stock && <AskAIChat stockContext={stockContext} />}
     </div>
   );
 }

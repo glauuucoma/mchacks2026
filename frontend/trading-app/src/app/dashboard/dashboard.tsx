@@ -3,16 +3,17 @@
 import { motion } from "framer-motion";
 import StockList from "@/components/dashboard/StockList";
 import FearGreedIndex from "@/components/dashboard/FearGreedIndex";
+import AskAIChat from "@/components/dashboard/AskAIChat";
 
 export default function DashboardPage() {
   return (
-    <div className="bg-background">
+    <div className="bg-background relative">
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <main className="max-w-[1600px] mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Fear & Greed Index - Sidebar */}
           <motion.div
-            className="lg:col-span-4 xl:col-span-3"
+            className="lg:col-span-3 xl:col-span-3"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.4, delay: 0.1 }}
@@ -50,7 +51,7 @@ export default function DashboardPage() {
 
           {/* Stock List - Main Content */}
           <motion.div
-            className="lg:col-span-8 xl:col-span-9"
+            className="lg:col-span-9 xl:col-span-9"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.2 }}
@@ -59,6 +60,9 @@ export default function DashboardPage() {
           </motion.div>
         </div>
       </main>
+
+      {/* Floating AI Chat */}
+      <AskAIChat />
     </div>
   );
 }
