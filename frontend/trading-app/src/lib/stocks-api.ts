@@ -200,3 +200,197 @@ export function useStockSearch(query: string) {
     refetchOnWindowFocus: false,
   });
 }
+
+// Detailed stock data for the stock detail modal
+export interface StockDetailData {
+  quote: StockQuote | null;
+  profile: CompanyProfile | null;
+}
+
+async function fetchStockDetail(ticker: string): Promise<StockDetailData> {
+  const [quote, profile] = await Promise.all([
+    fetchQuote(ticker).catch(() => null),
+    fetchProfile(ticker).catch(() => null),
+  ]);
+  
+  return { quote, profile };
+}
+
+export function useStockDetail(ticker: string, enabled: boolean = true) {
+  return useQuery({
+    queryKey: ["stockDetail", ticker],
+    queryFn: () => fetchStockDetail(ticker),
+    enabled: enabled && !!ticker,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+// Stock Candle Data for Charts - Using Yahoo Finance API (free, no key required)
+export interface ChartDataPoint {
+  date: string;
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export type TimeRange = "1D" | "1W" | "1M" | "3M" | "6M" | "1Y" | "5Y";
+
+interface YahooChartResponse {
+  chart: {
+    result: Array<{
+      timestamp: number[];
+      indicators: {
+        quote: Array<{
+          open: number[];
+          high: number[];
+          low: number[];
+          close: number[];
+          volume: number[];
+        }>;
+      };
+    }>;
+    error: null | { code: string; description: string };
+  };
+}
+
+function getYahooParams(range: TimeRange): { interval: string; range: string } {
+  switch (range) {
+    case "1D":
+      return { interval: "5m", range: "1d" };
+    case "1W":
+      return { interval: "15m", range: "5d" };
+    case "1M":
+      return { interval: "1h", range: "1mo" };
+    case "3M":
+      return { interval: "1d", range: "3mo" };
+    case "6M":
+      return { interval: "1d", range: "6mo" };
+    case "1Y":
+      return { interval: "1d", range: "1y" };
+    case "5Y":
+      return { interval: "1wk", range: "5y" };
+    default:
+      return { interval: "1d", range: "1mo" };
+  }
+}
+
+async function fetchStockCandles(ticker: string, range: TimeRange): Promise<ChartDataPoint[]> {
+  const { interval, range: yahooRange } = getYahooParams(range);
+  
+  // Use our API route to avoid CORS issues
+  const res = await fetch(
+    `/api/chart?ticker=${ticker}&interval=${interval}&range=${yahooRange}`
+  );
+  
+  if (!res.ok) throw new Error(`Failed to fetch chart data for ${ticker}`);
+  
+  const data: YahooChartResponse = await res.json();
+  
+  if (data.chart.error || !data.chart.result?.[0]) {
+    throw new Error(data.chart.error?.description || "No chart data available");
+  }
+  
+  const result = data.chart.result[0];
+  const timestamps = result.timestamp;
+  const quote = result.indicators.quote[0];
+  
+  if (!timestamps || !quote.close) {
+    return [];
+  }
+  
+  return timestamps
+    .map((timestamp, index) => ({
+      date: new Date(timestamp * 1000).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: range === "5Y" || range === "1Y" ? "2-digit" : undefined,
+        hour: range === "1D" || range === "1W" ? "numeric" : undefined,
+        minute: range === "1D" ? "2-digit" : undefined,
+      }),
+      time: timestamp,
+      open: quote.open[index] ?? 0,
+      high: quote.high[index] ?? 0,
+      low: quote.low[index] ?? 0,
+      close: quote.close[index] ?? 0,
+      volume: quote.volume[index] ?? 0,
+    }))
+    .filter((point) => point.close > 0); // Filter out null/invalid data points
+}
+
+export function useStockCandles(ticker: string, range: TimeRange, enabled: boolean = true) {
+  return useQuery({
+    queryKey: ["stockCandles", ticker, range],
+    queryFn: () => fetchStockCandles(ticker, range),
+    enabled: enabled && !!ticker,
+    staleTime: range === "1D" ? 60000 : 300000, // 1 min for daily, 5 min for longer
+    refetchOnWindowFocus: false,
+  });
+}
+
+// Basic Financials / Metrics
+export interface BasicFinancials {
+  metric: {
+    "10DayAverageTradingVolume"?: number;
+    "52WeekHigh"?: number;
+    "52WeekLow"?: number;
+    "52WeekHighDate"?: string;
+    "52WeekLowDate"?: string;
+    beta?: number;
+    peBasicExclExtraTTM?: number;       // P/E ratio (TTM)
+    peTTM?: number;                      // Alternative P/E
+    pbAnnual?: number;                   // Price to Book
+    psAnnual?: number;                   // Price to Sales
+    dividendYieldIndicatedAnnual?: number;
+    epsBasicExclExtraItemsTTM?: number; // EPS
+    epsTTM?: number;                     // Alternative EPS
+    revenuePerShareTTM?: number;
+    bookValuePerShareAnnual?: number;
+    currentRatioAnnual?: number;
+    quickRatioAnnual?: number;
+    roaRfy?: number;                     // Return on Assets
+    roeRfy?: number;                     // Return on Equity
+    roiAnnual?: number;                  // Return on Investment
+    grossMarginTTM?: number;
+    operatingMarginTTM?: number;
+    netProfitMarginTTM?: number;
+    debtEquityAnnual?: number;
+    longTermDebtEquityAnnual?: number;
+    payoutRatioAnnual?: number;
+    revenueGrowthTTMYoy?: number;
+    epsGrowthTTMYoy?: number;
+  };
+  series?: {
+    annual?: Record<string, { period: string; v: number }[]>;
+    quarterly?: Record<string, { period: string; v: number }[]>;
+  };
+}
+
+async function fetchBasicFinancials(ticker: string): Promise<BasicFinancials | null> {
+  try {
+    const res = await fetch(
+      `${BASE_URL}/stock/metric?symbol=${ticker}&metric=all&token=${FINNHUB_API_KEY}`
+    );
+    
+    if (!res.ok) return null;
+    
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    console.error(`Error fetching financials for ${ticker}:`, error);
+    return null;
+  }
+}
+
+export function useBasicFinancials(ticker: string, enabled: boolean = true) {
+  return useQuery({
+    queryKey: ["basicFinancials", ticker],
+    queryFn: () => fetchBasicFinancials(ticker),
+    enabled: enabled && !!ticker,
+    staleTime: 300000, // 5 minutes
+    refetchOnWindowFocus: false,
+  });
+}

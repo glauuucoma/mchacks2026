@@ -139,7 +139,7 @@ export default function FearGreedIndex() {
             {/* Center value display */}
             <text
               x="110"
-              y="170"
+              y="150"
               textAnchor="middle"
               className="fill-foreground text-4xl font-bold"
               style={{ fontFamily: "var(--font-geist-mono)" }}
@@ -148,7 +148,7 @@ export default function FearGreedIndex() {
             </text>
             <text
               x="110"
-              y="135"
+              y="170"
               textAnchor="middle"
               className="fill-muted-foreground text-xs"
             >

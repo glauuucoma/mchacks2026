@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useCallback, memo } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowUpDown,
@@ -79,17 +80,14 @@ const ColumnHeader = memo(function ColumnHeader({
   );
 });
 
-export function onView(){
-    console.log("View")
-}
-
 // Stock row component
 interface StockRowProps {
   stock: StockData;
   onRemove: (ticker: string) => void;
+  onView: (ticker: string) => void;
 }
 
-const StockRow = memo(function StockRow({ stock, onRemove }: StockRowProps) {
+const StockRow = memo(function StockRow({ stock, onRemove, onView }: StockRowProps) {
   return (
     <motion.tr
       layout
@@ -156,7 +154,7 @@ const StockRow = memo(function StockRow({ stock, onRemove }: StockRowProps) {
         <td className="py-4 px-2 text-right">
       {/* View button */}
         <button
-          onClick={() => onView()}
+          onClick={() => onView(stock.ticker)}
           className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-all cursor-pointer"
           aria-label={`View ${stock.ticker}`}
         >
@@ -238,6 +236,7 @@ const SearchDropdown = memo(function SearchDropdown({
 
 // Main StockList component
 export default function StockList() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
@@ -283,11 +282,24 @@ export default function StockList() {
     [removeTicker]
   );
 
-  // Sort stocks
+  // Handle viewing stock details - navigate to stock detail page
+  const handleViewStock = useCallback((ticker: string) => {
+    router.push(`/dashboard/stock/${ticker.toLowerCase()}`);
+  }, [router]);
+
+  // Sort stocks (deduplicate by ticker first to avoid duplicate key errors)
   const sortedStocks = useMemo(() => {
     if (!stocksData) return [];
 
-    return [...stocksData].sort((a, b) => {
+    // Deduplicate by ticker - keep first occurrence
+    const seen = new Set<string>();
+    const uniqueStocks = stocksData.filter((stock) => {
+      if (seen.has(stock.ticker)) return false;
+      seen.add(stock.ticker);
+      return true;
+    });
+
+    return uniqueStocks.sort((a, b) => {
       const aValue = a[sortField];
       const bValue = b[sortField];
       const multiplier = sortDirection === "asc" ? 1 : -1;
@@ -348,6 +360,7 @@ export default function StockList() {
                   currentSort={sortField}
                   direction={sortDirection}
                   onSort={handleSort}
+                  className="cursor-pointer"
                 />
               </th>
               <th className="py-3 px-4">
@@ -440,6 +453,7 @@ export default function StockList() {
                     key={stock.ticker}
                     stock={stock}
                     onRemove={handleRemoveTicker}
+                    onView={handleViewStock}
                   />
                 ))}
               </AnimatePresence>
