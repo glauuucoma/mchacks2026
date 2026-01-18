@@ -396,12 +396,13 @@ export default function StockList() {
                 />
               </th>
               <th className="py-3 px-2 w-12"></th>
+              <th className="py-3 px-2 w-12"></th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={8} className="py-16 text-center">
+                <td colSpan={9} className="py-16 text-center">
                   <div className="flex flex-col items-center gap-3">
                     <Loader2 className="size-8 animate-spin text-muted-foreground" />
                     <span className="text-muted-foreground">Loading stocks...</span>
@@ -410,7 +411,7 @@ export default function StockList() {
               </tr>
             ) : isError ? (
               <tr>
-                <td colSpan={8} className="py-16 text-center">
+                <td colSpan={9} className="py-16 text-center">
                   <div className="flex flex-col items-center gap-3">
                     <span className="text-destructive">Failed to load stocks</span>
                     <Button variant="outline" size="sm">
@@ -421,7 +422,7 @@ export default function StockList() {
               </tr>
             ) : sortedStocks.length === 0 ? (
               <tr>
-                <td colSpan={8} className="py-16 text-center">
+                <td colSpan={9} className="py-16 text-center">
                   <div className="flex flex-col items-center gap-3">
                     <div className="size-12 rounded-full bg-muted flex items-center justify-center">
                       <Search className="size-5 text-muted-foreground" />
