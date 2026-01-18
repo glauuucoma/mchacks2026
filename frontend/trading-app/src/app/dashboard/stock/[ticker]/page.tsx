@@ -196,6 +196,45 @@ export default function StockDetailPage() {
     }
   };
 
+  /** Analyze Congress data to determine buy/sell/hold rating */
+  const analyzeCongressData = useCallback((trades: CongressPerson[]): number => {
+    if (!trades || trades.length === 0) {
+      return 0; // HOLD if no data
+    }
+
+    let buyCount = 0;
+    let sellCount = 0;
+
+    trades.forEach((trade) => {
+      const tradeType = trade.trade_type?.toLowerCase();
+      if (tradeType === "buy") {
+        buyCount++;
+      } else if (tradeType === "sell") {
+        sellCount++;
+      }
+    });
+
+    // If no valid trades, return HOLD (0)
+    if (buyCount === 0 && sellCount === 0) {
+      return 0;
+    }
+
+    const total = buyCount + sellCount;
+    const buyRatio = buyCount / total;
+    const sellRatio = sellCount / total;
+
+    if (buyRatio > 0.5) {
+      // Majority bought - return positive score (40-50 range for BUY)
+      return 40 + Math.floor(buyRatio * 10); // 40-50 range
+    } else if (sellRatio > 0.5) {
+      // Majority sold - return negative score (-40 to -50 range for SELL)
+      return -40 - Math.floor(sellRatio * 10); // -40 to -50 range
+    } else {
+      // Equal split - return HOLD (0)
+      return 0;
+    }
+  }, []);
+
   /** Fetch ML recommendation from backend */
   const fetchRecommendation = useCallback(async (tickerParam: string): Promise<number> => {
     try {
@@ -279,7 +318,8 @@ export default function StockDetailPage() {
     }
     
     const newsScore = generateScore();
-    const congressScore = generateScore();
+    // Analyze Congress data to get actual buy/sell/hold rating
+    const congressScore = analyzeCongressData(congressData);
     const socialScore = generateScore();
 
     const sources = {
@@ -307,7 +347,7 @@ export default function StockDetailPage() {
     }));
 
     setActiveTab("ai-analysis");
-  }, [sourceWeights, ticker, fetchRecommendation]);
+  }, [sourceWeights, ticker, fetchRecommendation, analyzeCongressData, congressData]);
 
   /** Reset analysis state */
   const resetAnalysis = useCallback(() => {

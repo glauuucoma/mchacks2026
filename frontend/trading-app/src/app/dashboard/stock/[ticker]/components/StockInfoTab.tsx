@@ -45,6 +45,7 @@ import {
   PiggyBank,
   ChartCandlestick,
   ChevronDown,
+  Newspaper,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { TimeRange } from "@/lib/stocks-api";
@@ -66,6 +67,7 @@ import {
 } from "recharts";
 import { DataCell } from "./DataCell";
 import { ANALYSIS_STEPS, TIME_RANGES, type AnalysisState } from "../data";
+import { useNewsHeadlines, type Article } from "@/lib/api/news";
 
 // =============================================================================
 // TYPES
@@ -176,7 +178,58 @@ function SummarySection({
 }
 
 // =============================================================================
-// SECTION 2: PRICE CHART
+// SECTION 2: NEWS ARTICLES
+// =============================================================================
+
+function NewsSection({ companyName }: { companyName: string }) {
+  const searchQuery = `${companyName}`;
+  const { data: articles, isLoading, isError } = useNewsHeadlines(searchQuery, true, 3);
+
+  if (isError || (!isLoading && (!articles || articles.length === 0))) {
+    return null; // Don't show section if there's an error or no articles
+  }
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.125 }}
+      className="bg-card rounded-2xl border border-border p-6"
+    >
+      <div className="flex items-center gap-2 mb-4">
+        <Newspaper className="size-4 text-primary" />
+        <h3 className="text-sm font-semibold text-foreground">Latest News</h3>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {articles?.slice(0, 6).map((article: Article, index: number) => (
+            <motion.a
+              key={article.url || index}
+              href={article.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.05 }}
+              className="group inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-muted/30 hover:bg-muted/50 hover:border-primary/30 hover:text-primary transition-all duration-200 text-sm font-medium text-foreground"
+            >
+              <span>{article.title}</span>
+              <ExternalLink className="size-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0 opacity-0 group-hover:opacity-100" />
+            </motion.a>
+          ))}
+        </div>
+      )}
+    </motion.section>
+  );
+}
+
+// =============================================================================
+// SECTION 3: PRICE CHART
 // =============================================================================
 
 function PriceChartSection({
@@ -860,6 +913,8 @@ export function StockInfoTab({
           stockContext={stockContext}
           isPositive={isPositive}
         />
+
+        <NewsSection companyName={stock?.profile?.name || ticker} />
 
         <PriceChartSection
           candleData={candleData}
