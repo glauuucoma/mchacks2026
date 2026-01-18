@@ -16,23 +16,23 @@ from dotenv import load_dotenv
 # 1. SETUP
 # ======================================================
 load_dotenv()
-# GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# if not GEMINI_API_KEY:
-#     raise ValueError("❌ CRITICAL ERROR: GEMINI_API_KEY is missing")
+if not GEMINI_API_KEY:
+    raise ValueError("❌ CRITICAL ERROR: GEMINI_API_KEY is missing")
 
-# genai.configure(api_key=GEMINI_API_KEY)
+genai.configure(api_key=GEMINI_API_KEY)
 
-# try:
-#     print("🧠 Attempting to load Gemini 2.5 Flash...")
-#     model = genai.GenerativeModel("gemini-2.5-flash")
-# except:
-#     try:
-#         print("⚠️ 2.5 Failed. Trying Gemini 2.0 Flash...")
-#         model = genai.GenerativeModel("gemini-2.0-flash")
-#     except:
-#         print("⚠️ Falling back to Gemini 1.5 Flash...")
-#         model = genai.GenerativeModel("gemini-1.5-flash")
+try:
+    print("🧠 Attempting to load Gemini 2.5 Flash...")
+    model = genai.GenerativeModel("gemini-2.5-flash")
+except:
+    try:
+        print("⚠️ 2.5 Failed. Trying Gemini 2.0 Flash...")
+        model = genai.GenerativeModel("gemini-2.0-flash")
+    except:
+        print("⚠️ Falling back to Gemini 1.5 Flash...")
+        model = genai.GenerativeModel("gemini-1.5-flash")
 
 app = FastAPI()
 MEMORY_DB = {}
