@@ -1266,7 +1266,7 @@ function InsiderKnowledgeTab({
   isLoading,
   ticker,
 }: {
-  congressData: CongressPerson[];
+  congressData: any[]; // Changed to any[] to match the new JSON structure
   isLoading: boolean;
   ticker: string;
 }) {
@@ -1304,12 +1304,12 @@ function InsiderKnowledgeTab({
             <p className="text-sm text-muted-foreground">Loading congressional trading data...</p>
           </div>
         </div>
-      ) : congressData.length > 0 ? (
+      ) : congressData && congressData.length > 0 ? (
         /* Trades List */
         <div className="grid gap-4">
           {congressData.slice(0, 10).map((person, index) => (
             <motion.div
-              key={`${person.name}-${index}`}
+              key={`${person.id || index}`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
@@ -1329,13 +1329,13 @@ function InsiderKnowledgeTab({
                             (e.target as HTMLImageElement).style.display = 'none';
                             const parent = (e.target as HTMLImageElement).parentElement;
                             if (parent) {
-                              parent.innerHTML = `<span class="text-lg font-bold text-primary">${person.name.split(' ').map(n => n[0]).join('')}</span>`;
+                              parent.innerHTML = `<span class="text-lg font-bold text-primary">${(person.name || 'C').split(' ').map((n: string) => n[0]).join('')}</span>`;
                             }
                           }}
                         />
                       ) : (
                         <span className="text-lg font-bold text-primary">
-                          {person.name.split(' ').map(n => n[0]).join('')}
+                          {(person.name || 'C').split(' ').map((n: string) => n[0]).join('')}
                         </span>
                       )}
                     </div>
@@ -1345,11 +1345,16 @@ function InsiderKnowledgeTab({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-semibold text-foreground text-lg">
-                        {person.name}
+                        {person.name || "Unknown Member"}
                       </h3>
+                      {person.party && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                          {person.party} ({person.state || "N/A"})
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {person.office}
+                      {person.office || "U.S. Congress"}
                     </p>
 
                     {/* Trade Details Grid */}
@@ -1360,21 +1365,21 @@ function InsiderKnowledgeTab({
                         </p>
                         <span
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium ${
-                            person.type.toLowerCase().includes("purchase") || person.type.toLowerCase().includes("buy")
+                            (person.trade_type?.toLowerCase() || "").includes("buy")
                               ? "bg-emerald-500/10 text-emerald-600"
-                              : person.type.toLowerCase().includes("sale") || person.type.toLowerCase().includes("sell")
+                              : (person.trade_type?.toLowerCase() || "").includes("sell")
                               ? "bg-red-500/10 text-red-600"
                               : "bg-amber-500/10 text-amber-600"
                           }`}
                         >
-                          {person.type.toLowerCase().includes("purchase") || person.type.toLowerCase().includes("buy") ? (
+                          {(person.trade_type?.toLowerCase() || "").includes("buy") ? (
                             <TrendingUp className="size-3.5" />
-                          ) : person.type.toLowerCase().includes("sale") || person.type.toLowerCase().includes("sell") ? (
+                          ) : (person.trade_type?.toLowerCase() || "").includes("sell") ? (
                             <TrendingDown className="size-3.5" />
                           ) : (
                             <Activity className="size-3.5" />
                           )}
-                          {person.type}
+                          {person.trade_type?.toUpperCase() || "UNKNOWN"}
                         </span>
                       </div>
 
@@ -1383,16 +1388,16 @@ function InsiderKnowledgeTab({
                           Amount
                         </p>
                         <p className="font-semibold text-foreground font-mono">
-                          {person.amount}
+                          {person.size || person.amount || "N/A"}
                         </p>
                       </div>
 
                       <div>
                         <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
-                          Transaction Date
+                          Trade Date
                         </p>
                         <p className="font-medium text-foreground">
-                          {person.transactionDate}
+                          {person.trade_date || person.transactionDate || "N/A"}
                         </p>
                       </div>
                     </div>
